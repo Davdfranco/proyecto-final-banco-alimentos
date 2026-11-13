@@ -1,0 +1,12 @@
+# Entorno virtual
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# Temporales
+docs/_informe.html
+.vscode/
+.idea/
