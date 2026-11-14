@@ -7,7 +7,7 @@
 from collections.abc import Callable
 from functools import cmp_to_key
 
-from contador import Contador
+from .contador import Contador
 
 Lote = tuple[int, int, int]  # (peso_kg, valor_nutricional, dias_para_vencer)
 

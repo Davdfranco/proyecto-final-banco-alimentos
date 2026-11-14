@@ -4,7 +4,7 @@ Es la solución exacta con la que se verifica la programación dinámica. Su
 costo es Θ(n·2^n), así que solo se usa con pocas decenas de lotes.
 """
 
-from contador import Contador
+from .contador import Contador
 
 Lote = tuple[int, int, int]  # (peso_kg, valor_nutricional, dias_para_vencer)
 

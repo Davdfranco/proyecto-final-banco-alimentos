@@ -4,7 +4,7 @@ Estrategia propuesta: mochila 0/1 resuelta con programación dinámica
 (tabulación) y reconstrucción de los lotes elegidos.
 """
 
-from contador import Contador
+from .contador import Contador
 
 Lote = tuple[int, int, int]  # (peso_kg, valor_nutricional, dias_para_vencer)
 
