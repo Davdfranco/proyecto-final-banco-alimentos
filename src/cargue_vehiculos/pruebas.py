@@ -2,7 +2,7 @@
 
 Ejecutar desde la raíz del repositorio:
 
-    python src/cargue_vehiculos/pruebas.py
+    python -m src.cargue_vehiculos.pruebas
 """
 
 import random

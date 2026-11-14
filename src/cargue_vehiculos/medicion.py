@@ -2,7 +2,7 @@
 
 Ejecutar desde la raíz del repositorio:
 
-    python src/cargue_vehiculos/medicion.py
+    python -m src.cargue_vehiculos.medicion
 
 Genera las gráficas en graficas/cargue_vehiculos/ y las tablas de resultados
 en resultados/cargue_vehiculos/. Los datos se generan antes de cronometrar y
