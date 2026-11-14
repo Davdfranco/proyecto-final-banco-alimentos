@@ -224,7 +224,133 @@ Una cosa que aprendimos: que la PD coincida con la exhaustiva no prueba que el *
 
 ### 4.3 Operación 3 — Pruebas experimentales y resultados
 
-> 🚧 Sección en construcción.
+Para evaluar el comportamiento de los algoritmos se implementó el módulo
+[medicion.py](src/cargue_vehiculos/medicion.py), que genera instancias
+reproducibles, mide los tiempos de ejecución y cuenta las operaciones
+elementales de cada solución.
+
+Los experimentos se realizaron utilizando `time.perf_counter()` para
+medir el tiempo. La generación de los datos queda fuera del cronometraje
+y el conteo de operaciones se realiza por separado.
+
+Se desarrollaron cuatro experimentos:
+
+1. **Tamaños pequeños:** entre 8 y 20 lotes, con capacidad fija de 120 kg.
+   Se compararon programación dinámica, fuerza bruta y las dos reglas voraces.
+2. **Crecimiento de n:** entre 75 y 2400 lotes, con capacidad fija de 3000 kg.
+3. **Crecimiento de W:** 300 lotes y capacidades entre 250 y 8000 kg.
+4. **Volumen real del caso:** 10 días simulados, cada uno con 14 vehículos,
+   entre 300 y 600 lotes por ruta y capacidades entre 2500 y 4000 kg.
+
+Los resultados se guardaron en
+[resultados/cargue_vehiculos/](resultados/cargue_vehiculos/).
+
+**Tiempo de ejecución según la cantidad de lotes**
+
+![Tiempo frente a n](graficas/cargue_vehiculos/tiempo_vs_n.png)
+
+La fuerza bruta presenta crecimiento exponencial. Con apenas 20 lotes
+alcanzó aproximadamente 1957,94 ms, mientras que la programación dinámica
+tardó aproximadamente 0,161 ms para el mismo tamaño.
+
+**Conteo de operaciones elementales**
+
+![Operaciones frente a n](graficas/cargue_vehiculos/operaciones_vs_n.png)
+
+Al duplicar la cantidad de lotes de 10 a 20, las operaciones de la
+programación dinámica se multiplicaron por 2, mientras que las de
+fuerza bruta se multiplicaron por 2048.
+
+**Tiempo según la capacidad del vehículo**
+
+![Tiempo frente a la capacidad](graficas/cargue_vehiculos/tiempo_vs_capacidad.png)
+
+Al duplicar la capacidad de 2000 a 4000 kg, manteniendo fija la cantidad
+de lotes, el tiempo de programación dinámica se multiplicó por 2,17.
+Esto es consistente con su complejidad temporal Θ(n·W).
+
+**Calidad de las soluciones**
+
+![Calidad del cargue](graficas/cargue_vehiculos/calidad_cargue.png)
+
+| Algoritmo | Valor nutricional respecto al óptimo | Capacidad utilizada |
+|---|---:|---:|
+| Programación dinámica | 100 % | 100 % |
+| Regla por densidad | 98,60 % | 100 % |
+| Regla por vencimiento | 42,17 % | 86,50 % |
+
+Los porcentajes corresponden a las instancias sintéticas utilizadas
+en los experimentos. La programación dinámica garantiza el máximo valor
+nutricional, mientras que las reglas voraces no garantizan el óptimo.
+
+### 4.4 Operación 3 — Comparación entre resultados teóricos y experimentales
+
+La programación dinámica tiene complejidad temporal Θ(n·W). Cuando
+la capacidad permanece constante, el trabajo aumenta linealmente
+con la cantidad de lotes. Cuando n permanece constante, el trabajo
+aumenta aproximadamente de forma lineal con W.
+
+| Comparación | Factor experimental de tiempo | Factor de operaciones |
+|---|---:|---:|
+| PD: 8 a 16 lotes | 2,03 | 2,00 |
+| PD: 10 a 20 lotes | 1,83 | 2,00 |
+| PD: 300 a 600 lotes | 1,84 | 2,00 |
+| PD: 1200 a 2400 lotes | 2,04 | 2,00 |
+| PD: capacidad 2000 a 4000 kg | 2,17 | 2,00 |
+| Fuerza bruta: 8 a 16 lotes | 503,82 | 512,00 |
+| Fuerza bruta: 10 a 20 lotes | 1817,15 | 2048,00 |
+
+Los resultados respaldan el análisis teórico: la programación dinámica
+presenta un crecimiento pseudo-polinomial, mientras que la fuerza bruta
+crece exponencialmente.
+
+Las diferencias entre los factores de tiempo y operaciones se explican
+por los costos de ejecución de Python y las variaciones propias de las
+mediciones en el computador utilizado.
+
+### 4.5 Operación 3 — Extrapolación al volumen real y consumo energético
+
+Se simularon 10 días de operación con 14 vehículos diarios.
+
+Para programación dinámica se obtuvo un tiempo promedio de
+**1,6684 segundos por día**, considerando las 14 rutas.
+
+La ruta más costosa registrada necesitó aproximadamente 0,2433 segundos,
+con 585 lotes y capacidad de 3845 kg.
+
+Estos tiempos representan una fracción muy pequeña de la ventana
+disponible de dos horas para la planeación de despachos.
+
+**Comparación diaria**
+
+| Algoritmo | Tiempo estimado por día | Kilogramos despachados por día |
+|---|---:|---:|
+| Programación dinámica | 1,6684 s | 46.162,5 kg |
+| Regla por vencimiento | 0,0030 s | 39.931,9 kg |
+| Regla por densidad | 0,0031 s | 46.162,5 kg |
+
+En las simulaciones, la programación dinámica permitió cargar
+aproximadamente **6230,6 kg adicionales por día** frente a la regla
+actual por vencimiento.
+
+**Estimación de energía**
+
+Para estimar el consumo energético se utilizó un computador de
+150 W y 300 días de operación al año.
+
+| Algoritmo | Consumo energético anual estimado |
+|---|---:|
+| Programación dinámica | 0,02086 kWh |
+| Regla por vencimiento | 0,00003755 kWh |
+| Regla por densidad | 0,00003877 kWh |
+
+Aunque la programación dinámica requiere más procesamiento que las
+reglas voraces, su consumo energético estimado sigue siendo muy bajo
+y permite obtener una carga nutricionalmente óptima.
+
+Los resultados dependen de las instancias sintéticas y del equipo
+utilizado para las mediciones. No deben interpretarse como mediciones
+directas de la operación real del banco de alimentos.
 
 ### 4.6 Operación 4 — Complejidad, verificación y resultados
 
