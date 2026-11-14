@@ -197,16 +197,27 @@ Los algoritmos se encuentran en `src/cargue_vehiculos/`, las gráficas en `grafi
 
 ### 3.2 Operación 3 — Código del cargue de vehículos
 
-Los algoritmos y las pruebas están implementados en src/cargue_vehiculos/.
+Los algoritmos y las pruebas están implementados en [src/cargue_vehiculos/](src/cargue_vehiculos/).
 
 | Archivo | Descripción |
 |---|---|
-| contador.py | Contador de operaciones elementales. |
-| estrategia.py | Solución óptima mediante programación dinámica (mochila 0/1). |
-| exhaustivo.py | Solución exacta mediante fuerza bruta. |
-| regla_actual.py | Regla por vencimiento y estrategia voraz por densidad. |
-| datos.py | Generación de instancias reproducibles para las pruebas. |
-| pruebas.py | Pruebas automatizadas, casos límite y 300 instancias aleatorias. |
+| [contador.py](src/cargue_vehiculos/contador.py) | Contador de operaciones elementales. |
+| [estrategia.py](src/cargue_vehiculos/estrategia.py) | Solución óptima mediante programación dinámica (mochila 0/1): `cargar_vehiculo`, que llena la tabla (`llenar_tabla`) y reconstruye los lotes elegidos (`reconstruir_lotes`). |
+| [exhaustivo.py](src/cargue_vehiculos/exhaustivo.py) | Solución exacta mediante fuerza bruta: `cargar_exhaustivo` prueba los 2ⁿ subconjuntos. |
+| [regla_actual.py](src/cargue_vehiculos/regla_actual.py) | Regla por vencimiento (`cargar_por_vencimiento`, la que se usa hoy) y estrategia voraz por densidad (`cargar_por_densidad`). |
+| [datos.py](src/cargue_vehiculos/datos.py) | Generación de instancias reproducibles para las pruebas y las mediciones. |
+| [pruebas.py](src/cargue_vehiculos/pruebas.py) | Pruebas automatizadas, casos límite y 300 instancias aleatorias. |
+| [medicion.py](src/cargue_vehiculos/medicion.py) | Experimentos de tiempo y operaciones, tablas en `resultados/` y gráficas en `graficas/`. |
+
+**Decisiones de implementación**
+
+- Respetamos las firmas del esqueleto del laboratorio. Solo agregamos un parámetro opcional `contador` al final, que no cambia lo que devuelve cada función. Al cronometrar lo dejamos en `None` para que contar no infle el tiempo, y contamos en una corrida aparte.
+- En `llenar_tabla` cada fila empieza como copia de la anterior (la opción "no subir el lote") y solo se recorren las columnas `w >= peso` (la opción "subirlo"). Es la misma recurrencia, pero evita comparaciones inútiles donde el lote no cabe.
+- La reconstrucción compara `K[i][w]` con `K[i-1][w]` y baja `w` cada vez que un lote sube; por eso se guarda la tabla completa y no solo una fila.
+- La exhaustiva usa un entero como máscara de bits (bit i = lote i) para recorrer los 2ⁿ subconjuntos.
+- Las reglas ordenan **índices** y no los lotes, para no modificar la lista original.
+- Los lotes vencidos (0 días o menos) se excluyen en las cuatro soluciones, para que la comparación sea justa y ninguna despache comida vencida.
+- Los módulos usan importaciones relativas (`from .contador import Contador`), así que se ejecutan como módulo desde la raíz del repositorio (`python -m src.cargue_vehiculos.pruebas`), como se explica en la sección 9.
 
 ### 3.3 Operación 4 — Código del análisis de saturación
 
@@ -267,6 +278,13 @@ elementales de cada solución.
 Los experimentos se realizaron utilizando `time.perf_counter()` para
 medir el tiempo. La generación de los datos queda fuera del cronometraje
 y el conteo de operaciones se realiza por separado.
+
+**Cómo medimos**
+
+- Los datos se generan con [datos.py](src/cargue_vehiculos/datos.py) usando semilla fija: la instancia de tamaño n usa la semilla 1000 + n en el experimento de tamaños pequeños y 2000 + n en el de crecimiento de n. Todas las soluciones se miden **con las mismas instancias** en cada tamaño.
+- Repeticiones: 50 para la programación dinámica y las reglas en tamaños pequeños; 5 para la programación dinámica y 20 para las reglas en tamaños grandes; 5 para la fuerza bruta (3 desde 16 lotes). Se reporta el promedio.
+- Las operaciones se cuentan con `Contador`: casillas de la tabla (PD), subconjuntos × n (fuerza bruta) y comparaciones más lotes revisados (reglas).
+- En los tamaños donde corren las dos, un `assert` comprueba que la PD y la fuerza bruta dan el mismo valor.
 
 Se desarrollaron cuatro experimentos:
 
@@ -355,6 +373,33 @@ con 585 lotes y capacidad de 3845 kg.
 
 Estos tiempos representan una fracción muy pequeña de la ventana
 disponible de dos horas para la planeación de despachos.
+
+**Extrapolación de la fuerza bruta.** No se puede medir con el volumen
+real, así que la extrapolamos con la forma de su curva, Θ(n·2ⁿ), que
+la sección 4.4 confirma (el factor al duplicar se acerca a 2048 = 2 · 2¹⁰).
+Con 20 lotes tardó 1,958 s para 20.971.520 operaciones, es decir,
+unos 9,3 × 10⁻⁸ s por operación:
+
+- Con **40 lotes**: 40 · 2⁴⁰ ≈ 4,4 × 10¹³ operaciones ≈ 4,1 × 10⁶ s, unos
+  **47 días** para un solo vehículo.
+- Con **300 lotes** (la ruta real más pequeña): 300 · 2³⁰⁰ · 9,3 × 10⁻⁸ ≈
+  5,7 × 10⁸⁵ s, muchísimo más que la edad del universo (≈ 4,4 × 10¹⁷ s).
+
+Por eso la fuerza bruta **sencillamente no termina** con el volumen real:
+solo sirve como juez en instancias pequeñas.
+
+**¿Cabe cada solución en la ventana de 2 horas (7.200 s)?**
+
+| Algoritmo | Tiempo por día (14 vehículos) | ¿Cabe en la ventana? |
+|---|---:|---|
+| Programación dinámica | 1,67 s medido (≈ 3,4 s si las 14 rutas fueran como la más pesada) | **Sí**, usa menos del 0,05 % de la ventana |
+| Regla por vencimiento | 0,0030 s | Sí, pero no da el óptimo |
+| Regla por densidad | 0,0031 s | Sí, pero no da el óptimo |
+| Fuerza bruta | > 10⁸⁵ s | **No, nunca termina** |
+
+Aunque el computador de la fundación fuera cien veces más lento que
+nuestro portátil, la programación dinámica tardaría unos 3 a 6 minutos
+por día y seguiría cabiendo en la ventana.
 
 **Comparación diaria**
 
@@ -488,6 +533,7 @@ Los tiempos se obtuvieron de los experimentos realizados con 10 días simulados 
 | Programación dinámica | 1,6684 s | 0,02086 kWh |
 | Regla por vencimiento | 0,0030 s | 0,00003755 kWh |
 | Regla por densidad | 0,0031 s | 0,00003877 kWh |
+| Fuerza bruta | no termina (sección 4.5) | no se puede usar: aun con solo 40 lotes serían ≈ 171 kWh por vehículo y por día |
 
 La programación dinámica necesita más tiempo de procesamiento porque evalúa diferentes combinaciones de lotes y capacidades para encontrar la solución óptima.
 
@@ -548,11 +594,16 @@ git clone https://github.com/Davdfranco/proyecto-final-banco-alimentos.git
 cd proyecto-final-banco-alimentos
 ~~~
 
-Instalar las dependencias:
+Crear y activar el entorno virtual (Python 3.12 o superior), e instalar las dependencias. Todos los comandos se ejecutan **desde la raíz del repositorio**:
 
 ~~~powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1        # Windows (PowerShell)
+# source .venv/bin/activate       # Linux / macOS
 python -m pip install -r requirements.txt
 ~~~
+
+Si PowerShell no deja activar el entorno, se habilita una sola vez con `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
 ### 9.2 Ejecutar las pruebas automatizadas
 
