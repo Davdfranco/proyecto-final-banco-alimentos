@@ -90,7 +90,79 @@ Para cada ruta, el coordinador tiene una lista de lotes candidatos y un vehícul
 
 ### 2.2 Operación 3 — Cargue de los vehículos
 
-> 🚧 Sección en construcción.
+Diseñamos cuatro soluciones para la misma operación: la que proponemos y tres contra las que se compara.
+
+| Solución | Familia | Para qué está |
+|---|---|---|
+| Mochila 0/1 por programación dinámica | Programación dinámica | **Propuesta**: da el óptimo en Θ(n·W). |
+| Exhaustiva | Fuerza bruta | Juez para verificar que la PD sí da el óptimo (solo con pocos lotes). |
+| Por vencimiento | Regla actual | Línea base: lo que hace hoy el coordinador. |
+| Por densidad (valor/kg) | Voraz | Regla "tentadora" que el laboratorio pide incluir para mostrar que tampoco garantiza el óptimo. |
+
+#### Por qué el problema admite programación dinámica
+
+Decidimos lote por lote si sube o no. Después de decidir sobre el último lote de la lista, lo que queda es **el mismo problema** pero más pequeño: menos lotes por decidir y, si el lote subió, menos capacidad libre. Para describir "lo que queda" hacen falta dos números: cuántos lotes faltan (i) y cuántos kilos quedan libres (w).
+
+- **Subestructura óptima.** Si una carga óptima para los lotes 1..i con w kg incluye el lote i, entonces el resto de esa carga tiene que ser una carga óptima para los lotes 1..i−1 con w − peso_i kg. Si no lo fuera, cambiaríamos ese resto por uno mejor y la carga total subiría, lo que contradice que era óptima. Lo mismo si el lote i no sube: el resto es óptimo para 1..i−1 con w kg.
+- **Subproblemas que se repiten.** Muchas combinaciones distintas de decisiones terminan en el mismo estado. Por ejemplo, subir un lote de 6 kg, o subir uno de 4 kg y otro de 2 kg, deja en ambos casos la misma capacidad libre y los mismos lotes por decidir. Un recorrido recursivo resolvería ese estado varias veces; la tabla lo resuelve una sola vez.
+
+Una regla voraz no sirve aquí porque escoger "el mejor lote ahora" puede dejar un hueco que después no se llena con nada útil (lo mostramos con el contraejemplo de la sección 5.1).
+
+#### La recurrencia
+
+Definimos **K[i][w]** = el mayor valor nutricional que se puede cargar usando solo los primeros i lotes en un vehículo de w kg.
+
+```
+K[0][w] = 0                                         para todo w   (sin lotes no hay valor)
+K[i][w] = K[i-1][w]                                 si peso_i > w o el lote i está vencido
+K[i][w] = max( K[i-1][w] , valor_i + K[i-1][w - peso_i] )   si peso_i <= w
+```
+
+- `K[i-1][w]`: **no subir** el lote i. La capacidad sigue igual y decidimos sobre los anteriores.
+- `valor_i + K[i-1][w - peso_i]`: **subir** el lote i. Ganamos su valor y nos quedan `w - peso_i` kg para los anteriores. Se usa la fila i−1 (y no la i) para que un mismo lote no suba dos veces.
+- **Caso base:** la fila 0 (ningún lote) es toda ceros. La columna w = 0 también queda en cero porque no cabe nada.
+- **Orden de llenado:** cada casilla de la fila i solo depende de la fila i−1, así que llenamos fila por fila, de arriba hacia abajo. Dentro de la fila el orden de las columnas no importa.
+- **Respuesta:** K[n][W].
+- **Reconstrucción:** desde K[n][W] subimos fila por fila. Si K[i][w] ≠ K[i−1][w], el lote i subió y restamos su peso a w; si son iguales, no subió.
+
+#### Ejemplo pequeño resuelto a mano
+
+Usamos un vehículo a escala con **W = 10 kg** y cinco lotes, ya ordenados por vencimiento:
+
+| Lote | Producto (categoría) | Peso (kg) | Raciones × prioridad | Valor | Días para vencer | Valor/kg |
+|---|---|---|---|---|---|---|
+| L0 | Arroz (otros) | 6 | 12 × 1 | 12 | 1 | 2,0 |
+| L1 | Atún (proteína) | 1 | 3 × 3 | 9 | 2 | 9,0 |
+| L2 | Guayaba (frutas y verduras) | 4 | 8 × 2 | 16 | 3 | 4,0 |
+| L3 | Tomate (frutas y verduras) | 1 | 3 × 2 | 6 | 4 | 6,0 |
+| L4 | Fríjol (proteína) | 6 | 6 × 3 | 18 | 5 | 3,0 |
+
+Llenamos la tabla fila por fila (la fila i ya considera los lotes L0 a L(i−1)):
+
+| i \ w | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 (ninguno) | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 1 (+L0: 6 kg, 12) | 0 | 0 | 0 | 0 | 0 | 0 | 12 | 12 | 12 | 12 | 12 |
+| 2 (+L1: 1 kg, 9) | 0 | 9 | 9 | 9 | 9 | 9 | 12 | 21 | 21 | 21 | 21 |
+| 3 (+L2: 4 kg, 16) | 0 | 9 | 9 | 9 | 16 | 25 | 25 | 25 | 25 | 25 | 28 |
+| 4 (+L3: 1 kg, 6) | 0 | 9 | 15 | 15 | 16 | 25 | 31 | 31 | 31 | 31 | 31 |
+| 5 (+L4: 6 kg, 18) | 0 | 9 | 15 | 15 | 16 | 25 | 31 | 31 | 33 | 33 | **34** |
+
+Algunas casillas explicadas paso a paso:
+
+- **K[2][7]** (L0 y L1, 7 kg): no subir L1 da K[1][7] = 12; subirlo da 9 + K[1][6] = 9 + 12 = 21. Gana 21 (arroz + atún).
+- **K[3][10]** (L0, L1, L2 con 10 kg): no subir L2 da K[2][10] = 21; subirlo da 16 + K[2][6] = 16 + 12 = 28. Gana 28.
+- **K[4][10]**: no subir L3 da 28; subirlo da 6 + K[3][9] = 6 + 25 = 31. Gana 31.
+- **K[5][10]** (todos, 10 kg): no subir L4 da K[4][10] = 31; subirlo da 18 + K[4][4] = 18 + 16 = **34**. Gana 34.
+
+**Reconstrucción** desde K[5][10] = 34:
+
+1. Fila 5, w = 10: K[5][10] = 34 ≠ K[4][10] = 31 → **L4 sube**. Quedan 10 − 6 = 4 kg.
+2. Fila 4, w = 4: K[4][4] = 16 = K[3][4] = 16 → L3 no sube.
+3. Fila 3, w = 4: K[3][4] = 16 ≠ K[2][4] = 9 → **L2 sube**. Quedan 4 − 4 = 0 kg.
+4. Filas 2 y 1, w = 0: todo es 0 → L1 y L0 no suben.
+
+**Resultado óptimo: guayaba (L2) + fríjol (L4), 10 kg exactos y valor 34.** Este mismo ejemplo está como prueba en `pruebas.py`.
 
 ### 2.3 Operación 4 — Análisis de saturación
 
@@ -142,7 +214,43 @@ Para cada ruta, el coordinador tiene una lista de lotes candidatos y un vehícul
 
 ### 5.1 Operación 3 — Contraejemplo de la regla actual (y de la voraz por densidad)
 
-> 🚧 Sección en construcción.
+Usamos el mismo ejemplo de la sección 2.2: vehículo de **10 kg** y estos lotes (peso, valor, días para vencer): L0 (6, 12, 1), L1 (1, 9, 2), L2 (4, 16, 3), L3 (1, 6, 4), L4 (6, 18, 5).
+
+**Regla actual (por vencimiento, se detiene en el primero que no cabe):**
+
+| Paso | Lote (por vencimiento) | Peso | ¿Cabe? | Carga | Valor |
+|---|---|---|---|---|---|
+| 1 | L0 arroz (vence en 1 día) | 6 | sí (6 ≤ 10) | 6 kg | 12 |
+| 2 | L1 atún (2 días) | 1 | sí (7 ≤ 10) | 7 kg | 21 |
+| 3 | L2 guayaba (3 días) | 4 | **no** (11 > 10) → **para** | 7 kg | 21 |
+
+Resultado: **valor 21, 7 kg (70 % del vehículo)**. Quedan 3 kg libres y todavía estaba el tomate (1 kg), pero la regla ya paró.
+
+**Voraz por densidad (salta el que no cabe y sigue):** orden por valor/kg: L1 (9,0), L3 (6,0), L2 (4,0), L4 (3,0), L0 (2,0).
+
+| Paso | Lote | Peso | ¿Cabe? | Carga | Valor |
+|---|---|---|---|---|---|
+| 1 | L1 atún | 1 | sí | 1 kg | 9 |
+| 2 | L3 tomate | 1 | sí | 2 kg | 15 |
+| 3 | L2 guayaba | 4 | sí | 6 kg | 31 |
+| 4 | L4 fríjol | 6 | no (12 > 10), lo salta | 6 kg | 31 |
+| 5 | L0 arroz | 6 | no (12 > 10), lo salta | 6 kg | 31 |
+
+Resultado: **valor 31, 6 kg**. Metió primero lo "más eficiente" y dejó un hueco de 4 kg que ya ningún lote podía llenar.
+
+**Óptimo (programación dinámica y exhaustiva):** guayaba + fríjol, **10 kg, valor 34**.
+
+| Solución | Lotes | Peso | Valor | Diferencia con el óptimo |
+|---|---|---|---|---|
+| Por vencimiento (actual) | L0, L1 | 7 kg | 21 | **−13 (−38 %)** |
+| Voraz por densidad | L1, L2, L3 | 6 kg | 31 | **−3 (−9 %)** |
+| Programación dinámica | L2, L4 | 10 kg | **34** | — |
+
+La regla actual falla por dos razones que se suman: no mira el valor (solo la fecha) y se detiene en el primer lote que no cabe. La de densidad corrige la primera, pero igual falla porque **los lotes no se pueden partir**: si se pudiera llevar media porción del fríjol, la densidad sí daría el óptimo. Este contraejemplo está en `pruebas.py` (`probar_contraejemplo_reglas`).
+
+### 5.2 Operación 3 — Condición contraria: cuándo bastaría una regla voraz
+
+La regla por densidad sería la adecuada (y daría el óptimo en Θ(n log n), sin depender de W) si **los lotes se pudieran fraccionar**, es decir, si se pudiera subir una parte de un lote y recibir la parte proporcional de su valor. Eso es la mochila fraccionaria: se mete lo de mayor valor por kilo y el último lote se parte para llenar justo la capacidad, así nunca queda un hueco. Por ejemplo, si los productos llegaran a granel y se pudieran reempacar en la bodega. También funcionaría una voraz si todos los lotes tuvieran el **mismo valor por kilogramo** (entonces cualquier carga llena es óptima) o si todos pesaran lo mismo (bastaría con escoger los de mayor valor). En el banco ninguna de esas condiciones se cumple: el lote "sube completo o no sube" y los valores por kilo son muy distintos entre proteína, frutas y otros.
 
 ### 5.3 Operación 3 — Recomendación
 
