@@ -178,7 +178,22 @@ Algunas casillas explicadas paso a paso:
 
 ### 3.1 Tecnologías y herramientas
 
-> 🚧 Sección en construcción.
+El proyecto se desarrolló en **Python 3**, utilizando las siguientes herramientas y técnicas:
+
+| Herramienta o técnica | Uso en el proyecto |
+|---|---|
+| Python | Implementación de algoritmos y pruebas. |
+| Programación dinámica | Resolución óptima del problema de mochila 0/1. |
+| Fuerza bruta | Verificación mediante evaluación exhaustiva. |
+| Estrategias voraces | Comparación de las reglas por vencimiento y densidad nutricional. |
+| `random` | Generación de instancias reproducibles con semillas fijas. |
+| `time.perf_counter()` | Medición de tiempos de ejecución. |
+| Contador de operaciones | Análisis del crecimiento de los algoritmos. |
+| Matplotlib | Generación de gráficas comparativas. |
+| CSV y JSON | Almacenamiento de resultados experimentales. |
+| Git y GitHub | Control de versiones y trabajo colaborativo. |
+
+Los algoritmos se encuentran en `src/cargue_vehiculos/`, las gráficas en `graficas/cargue_vehiculos/` y los resultados en `resultados/cargue_vehiculos/`.
 
 ### 3.2 Operación 3 — Código del cargue de vehículos
 
@@ -203,7 +218,27 @@ Los algoritmos y las pruebas están implementados en src/cargue_vehiculos/.
 
 ### 4.1 Operación 3 — Complejidad temporal y espacial
 
-> 🚧 Sección en construcción.
+Para analizar los algoritmos se utilizan dos variables:
+
+- **n:** cantidad de lotes disponibles.
+- **W:** capacidad máxima del vehículo, expresada en kilogramos enteros.
+
+| Algoritmo | Complejidad temporal | Complejidad espacial |
+|---|---|---|
+| Programación dinámica | Θ(n·W) | O(n·W) |
+| Fuerza bruta | Θ(n·2^n) | O(n) |
+| Regla por vencimiento | O(n log n) | O(n) |
+| Regla por densidad | O(n log n) | O(n) |
+
+**Programación dinámica:** construye una tabla de soluciones para las combinaciones de lotes y capacidades. Su tiempo y memoria dependen de n y W. Es un algoritmo pseudo-polinomial porque W representa un valor numérico, no la longitud de su representación.
+
+**Fuerza bruta:** evalúa los 2^n subconjuntos posibles y comprueba su peso y valor nutricional. Garantiza encontrar el óptimo, pero su crecimiento exponencial impide utilizarlo con grandes cantidades de lotes.
+
+**Regla por vencimiento:** ordena los lotes según los días restantes antes de vencer y selecciona siguiendo ese orden. Su costo está dominado por el ordenamiento, pero no garantiza el máximo valor nutricional.
+
+**Regla por densidad:** ordena los lotes según su valor nutricional por kilogramo. También tiene un costo dominado por el ordenamiento y tampoco garantiza el óptimo cuando los lotes no se pueden fraccionar.
+
+Las mediciones experimentales de las secciones 4.3 y 4.4 permiten contrastar estas complejidades con los tiempos y las operaciones observadas.
 
 ### 4.2 Operación 3 — Verificación
 
@@ -402,7 +437,29 @@ La regla por densidad sería la adecuada (y daría el óptimo en Θ(n log n), si
 
 ### 5.3 Operación 3 — Recomendación
 
-> 🚧 Sección en construcción.
+Se recomienda utilizar **programación dinámica (mochila 0/1)** para seleccionar los lotes que se cargarán en cada vehículo del banco de alimentos.
+
+Esta recomendación se fundamenta en los siguientes resultados:
+
+1. **Calidad de la solución:** la programación dinámica garantiza el máximo valor nutricional posible sin superar la capacidad del vehículo y sin dividir los lotes.
+
+2. **Verificación:** las pruebas automatizadas confirmaron que la programación dinámica y la fuerza bruta obtienen el mismo valor óptimo en 300 instancias aleatorias.
+
+3. **Tiempo de ejecución:** en las simulaciones de 10 días y 14 vehículos diarios, la programación dinámica necesitó aproximadamente 1,6684 segundos por día para calcular las cargas.
+
+4. **Aprovechamiento de capacidad:** en las instancias simuladas, la programación dinámica alcanzó un aprovechamiento promedio del 100 %, frente al 86,50 % de la regla por vencimiento.
+
+5. **Valor nutricional:** la regla por vencimiento consiguió el 42,17 % del valor óptimo, mientras que la regla por densidad alcanzó el 98,60 %. Ninguna de las dos garantiza encontrar siempre la mejor combinación.
+
+6. **Viabilidad operativa:** los tiempos medidos se encuentran muy por debajo de la ventana de dos horas disponible para planear los despachos.
+
+Aunque las reglas voraces son más rápidas y consumen menos recursos computacionales, pueden seleccionar combinaciones que desperdician capacidad o reducen el valor nutricional transportado.
+
+Por otra parte, la fuerza bruta garantiza el óptimo, pero su crecimiento exponencial la hace inviable cuando aumenta considerablemente la cantidad de lotes.
+
+**Conclusión:** la programación dinámica ofrece el mejor equilibrio entre calidad de la solución y tiempo de procesamiento para las capacidades y cantidades de lotes evaluadas.
+
+Se recomienda mantener la regla por vencimiento como referencia comparativa y utilizar la programación dinámica como estrategia principal de planificación. Antes de aplicar los resultados en una operación real, se deben validar los datos de inventario, las restricciones de vencimiento y las condiciones logísticas del banco de alimentos.
 
 ### 5.4 Operación 4 — Comparación, ventajas y limitaciones
 
@@ -418,7 +475,31 @@ La regla por densidad sería la adecuada (y daría el óptimo en Θ(n log n), si
 
 ### 6.1 Consumo energético
 
-> 🚧 Sección en construcción.
+Para estimar el consumo energético de los algoritmos se utilizó como referencia un computador con una potencia supuesta de **150 W (0,15 kW)** y **300 días de operación al año**.
+
+El consumo se calcula mediante:
+
+**Energía (kWh) = Potencia (kW) × Tiempo de ejecución (horas)**
+
+Los tiempos se obtuvieron de los experimentos realizados con 10 días simulados y 14 vehículos por día.
+
+| Algoritmo | Tiempo estimado por día | Consumo anual estimado |
+|---|---:|---:|
+| Programación dinámica | 1,6684 s | 0,02086 kWh |
+| Regla por vencimiento | 0,0030 s | 0,00003755 kWh |
+| Regla por densidad | 0,0031 s | 0,00003877 kWh |
+
+La programación dinámica necesita más tiempo de procesamiento porque evalúa diferentes combinaciones de lotes y capacidades para encontrar la solución óptima.
+
+Las reglas voraces realizan menos operaciones y, por lo tanto, presentan un menor consumo energético estimado. Sin embargo, no garantizan encontrar la combinación de mayor valor nutricional.
+
+En las simulaciones, la programación dinámica obtuvo el **100 % del valor nutricional óptimo**, mientras que la regla por vencimiento alcanzó el **42,17 %** y la regla por densidad el **98,60 %**.
+
+Por esta razón, el mayor tiempo de procesamiento de la programación dinámica se considera aceptable frente al beneficio de seleccionar una mejor combinación de alimentos.
+
+**Limitación:** esta estimación supone una potencia constante de 150 W durante la ejecución. No corresponde a una medición directa del consumo eléctrico del computador ni incluye el consumo energético de los vehículos, la refrigeración o la operación de la bodega.
+
+Los valores se pueden reproducir ejecutando `python -m src.cargue_vehiculos.medicion` y consultando `resultados/cargue_vehiculos/resumen.json`.
 
 ### 6.2 Preguntas de impacto del caso
 
@@ -456,4 +537,60 @@ La regla por densidad sería la adecuada (y daría el óptimo en Θ(n log n), si
 
 ## 9. Cómo reproducir los datos y los experimentos
 
-> 🚧 Sección en construcción.
+Los experimentos de la operación 3 se pueden reproducir utilizando Python 3 y las dependencias del proyecto.
+
+### 9.1 Preparación del entorno
+
+Clonar el repositorio:
+
+~~~powershell
+git clone https://github.com/Davdfranco/proyecto-final-banco-alimentos.git
+cd proyecto-final-banco-alimentos
+~~~
+
+Instalar las dependencias:
+
+~~~powershell
+python -m pip install -r requirements.txt
+~~~
+
+### 9.2 Ejecutar las pruebas automatizadas
+
+~~~powershell
+python -m src.cargue_vehiculos.pruebas
+~~~
+
+Las pruebas incluyen casos límite, contraejemplos y 300 instancias aleatorias reproducibles.
+
+### 9.3 Ejecutar los experimentos
+
+~~~powershell
+python -m src.cargue_vehiculos.medicion
+~~~
+
+El programa compara los algoritmos, mide su crecimiento y simula 10 días de operación con 14 vehículos diarios.
+
+### 9.4 Archivos generados
+
+Gráficas en `graficas/cargue_vehiculos/`:
+
+- `tiempo_vs_n.png`
+- `operaciones_vs_n.png`
+- `tiempo_vs_capacidad.png`
+- `calidad_cargue.png`
+
+Resultados en `resultados/cargue_vehiculos/`:
+
+- `pequenas.csv`
+- `grandes_n.csv`
+- `capacidad.csv`
+- `dias_reales.csv`
+- `resumen.json`
+
+### 9.5 Consideraciones de reproducibilidad
+
+Las semillas fijas permiten reproducir las instancias utilizadas.
+
+Los tiempos pueden variar según el computador, el sistema operativo y la versión de Python.
+
+Las mediciones corresponden a datos sintéticos y no representan registros directos de la operación real del banco de alimentos.
