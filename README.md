@@ -182,7 +182,16 @@ Algunas casillas explicadas paso a paso:
 
 ### 3.2 Operación 3 — Código del cargue de vehículos
 
-> 🚧 Sección en construcción.
+Los algoritmos y las pruebas están implementados en src/cargue_vehiculos/.
+
+| Archivo | Descripción |
+|---|---|
+| contador.py | Contador de operaciones elementales. |
+| estrategia.py | Solución óptima mediante programación dinámica (mochila 0/1). |
+| exhaustivo.py | Solución exacta mediante fuerza bruta. |
+| regla_actual.py | Regla por vencimiento y estrategia voraz por densidad. |
+| datos.py | Generación de instancias reproducibles para las pruebas. |
+| pruebas.py | Pruebas automatizadas, casos límite y 300 instancias aleatorias. |
 
 ### 3.3 Operación 4 — Código del análisis de saturación
 
@@ -198,7 +207,20 @@ Algunas casillas explicadas paso a paso:
 
 ### 4.2 Operación 3 — Verificación
 
-> 🚧 Sección en construcción.
+Las pruebas están en [pruebas.py](src/cargue_vehiculos/pruebas.py) y se corren con `python -m src.cargue_vehiculos.pruebas`. Cubren:
+
+| Grupo | Qué verifica |
+|---|---|
+| Casos límite | Sin lotes; un lote que cabe; un lote que no cabe; ningún lote cabe; todos caben; capacidad 0; dos lotes que llenan justo la capacidad; capacidad negativa (debe lanzar `ValueError`). |
+| Ejemplo a mano | La PD y la exhaustiva dan 34 con los lotes [2, 4] (guayaba y fríjol) en el ejemplo de la sección 2.2. |
+| Contraejemplo | En el mismo ejemplo la regla por vencimiento da 21 y la de densidad 31: las dos quedan por debajo del óptimo 34. |
+| Lotes vencidos | Ninguna de las cuatro soluciones sube un lote con 0 o menos días para vencer. |
+| 300 instancias aleatorias (semilla 2026) | La PD y la exhaustiva dan **el mismo valor** en las 300 (de 0 a 12 lotes, la guía pide mínimo 20); además la carga reconstruida no pasa de la capacidad, no repite lotes y suma exactamente el valor óptimo; y las dos reglas nunca superan el óptimo ni la capacidad. |
+| Trazabilidad | Ninguna solución modifica la lista original de lotes. |
+
+Además, dentro de [medicion.py](src/cargue_vehiculos/medicion.py) hay un `assert` que vuelve a comprobar que la PD y la exhaustiva coinciden en cada tamaño medido. Todas las pruebas pasan.
+
+Una cosa que aprendimos: que la PD coincida con la exhaustiva no prueba que el **modelo** esté bien (si las dos partieran de una idea equivocada, se equivocarían igual). Por eso también está el ejemplo resuelto a mano y los casos límite.
 
 ### 4.3 Operación 3 — Pruebas experimentales y resultados
 
