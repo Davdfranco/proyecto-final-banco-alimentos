@@ -15,10 +15,12 @@
 
 **Operaciones trabajadas**
 
-| Operación | Estado | Estrategias |
+| Operación | Estrategias implementadas | Estrategia recomendada |
 |---|---|---|
-| 3. Cargue de los vehículos (Laboratorio 4) | Entrega del 18 de noviembre | Programación dinámica (mochila 0/1), exhaustiva, regla actual por vencimiento y voraz por densidad |
-| 4. Análisis de saturación de la bodega | Pendiente para el 23 de noviembre | — |
+| 3. Cargue de los vehículos | Programación dinámica (mochila 0/1), exhaustiva, regla actual por vencimiento y voraz por densidad | Programación dinámica |
+| 4. Análisis de saturación de la bodega | Fuerza bruta actual, dividir y vencer, Kadane (programación dinámica) | Kadane |
+
+El informe en PDF, con el mismo contenido de este README, está en [docs/informe.pdf](docs/informe.pdf).
 
 **Contenido**
 
@@ -38,15 +40,40 @@
 
 ### 1.1 Descripción del problema computacional
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+El Banco Regional de Alimentos planea cada madrugada qué lotes salen de la bodega, en qué orden y en qué vehículo. La planeación tiene que caber entre las 03:00 y las 05:00, porque a las 05:30 empieza el alistamiento y a las 06:30 salen los carros. Hoy se demora unas 4 horas y media, entonces los vehículos salen tarde, los comedores reciben la comida después de la hora en que la preparan y parte de lo perecedero se vence en la bodega.
+
+Leyendo el caso, nos quedó claro que el problema no es el computador sino cómo están resueltas las operaciones. Por eso lo vemos como cuatro problemas computacionales distintos que comparten los mismos datos (los lotes):
+
+| # | Operación | Qué crece (n) | Cómo se hace hoy | Orden de crecimiento actual |
+|---|---|---|---|---|
+| 1 | Consulta de inventario (por código y por rango de vencimiento) | lotes activos, ≈ 220.000 | recorrer la lista completa en cada consulta | Θ(n) por consulta; ≈ 30.000 consultas al día |
+| 2 | Ordenamiento FEFO | lotes activos (n) y nuevos del día (k = 6.000 a 9.000) | inserción, agregando los nuevos al final de una lista ya ordenada | Θ(n·k) en la práctica (Θ(n²) en el peor caso) |
+| 3 | Cargue de los vehículos | lotes candidatos por ruta (300 a 600) y capacidad W (2.500 a 4.000 kg) | cargar por vencimiento hasta que el siguiente no cabe | Θ(n log n), pero **no da el óptimo** |
+| 4 | Análisis de saturación | horas de histórico por categoría (≈ 36.000) × 40 categorías | evaluar todos los tramos de horas posibles | Θ(n²) por categoría |
 
 ### 1.2 Operaciones críticas del proceso
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+No todas las operaciones fallan de la misma manera, y eso fue lo que usamos para escoger:
+
+- **Operación 2 (FEFO)** y la consulta por rango de la **operación 1** son las que más tiempo consumen dentro de la ventana de planeación. Con la inserción, cada lote nuevo tiene que "caminar" hasta su posición dentro de la lista de 220.000 lotes; con 9.000 lotes nuevos son del orden de 9.000 × 110.000 ≈ 10⁹ movimientos por madrugada.
+- **Operación 3 (cargue)** casi no gasta tiempo de cómputo, pero su problema es otro: **la respuesta es mala**. Los vehículos salen al 78 % de su capacidad y la regla no mira el valor nutricional. Es la operación obligatoria del Laboratorio 4.
+- **Operación 4 (saturación)** está fuera de la ventana, pero es la más costosa de todas: el cliente dice que con 10 años de histórico tarda más de un día para las 40 categorías.
+
+Escogimos la **operación 3** (obligatoria, y donde el impacto social es directo: comida que llega o no llega) y la **operación 4** (la de mayor costo computacional y energético del proceso). Las operaciones 1 y 2 quedan analizadas de forma teórica en las recomendaciones (sección 7.3), porque también son parte del cuello de botella de la ventana.
 
 ### 1.3 Costo energético del proceso actual (línea base)
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+La energía la calculamos como en clase: **kWh = potencia (kW) × tiempo (h)**. El computador de la fundación consume unos 150 W = 0,15 kW bajo carga, y el banco opera 300 días al año.
+
+| Proceso actual | Tiempo informado por el cliente | Energía por corrida | Corridas al año | Energía al año |
+|---|---|---|---|---|
+| Planeación (operaciones 1 a 3) | ≈ 4,5 h cada madrugada | 4,5 h × 0,15 kW = 0,675 kWh | 300 | **202,5 kWh** |
+| Saturación (operación 4), 40 categorías | más de 24 h | ≥ 24 h × 0,15 kW = 3,6 kWh | 12 (supuesto: una vez al mes) | **≥ 43,2 kWh** |
+| **Total línea base** | | | | **≥ 245,7 kWh/año** |
+
+Además de la electricidad está el costo ambiental más grande: el banco estima que **cada kilogramo de alimento que se bota equivale a 2,5 kg de CO₂ equivalente**. Una planeación lenta y un cargue que deja espacio vacío en los carros significan comida que se vence en la bodega, y eso pesa mucho más que los kWh del computador. Lo retomamos en la sección 6.
+
+Con nuestras mediciones (sección 4) también estimamos la línea base de las dos operaciones que trabajamos en nuestro propio equipo, y la comparamos con la que reporta el cliente.
 
 ### 1.4 Operación 3 — Cargue de los vehículos: entradas, salida y restricciones
 
@@ -66,7 +93,15 @@ Para cada ruta, el coordinador tiene una lista de lotes candidatos y un vehícul
 
 ### 1.5 Operación 4 — Análisis de saturación: entradas, salida y restricciones
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+La Dirección quiere saber, para cada categoría, en qué tramo de horas seguidas el inventario creció más, para dimensionar el cuarto frío que piensa alquilar. Cada hora tiene un cambio neto (lo que entró menos lo que salió o se descartó), y puede ser negativo. Encontrar ese tramo es exactamente el problema del **subarreglo de suma máxima**.
+
+| Elemento | Descripción |
+|---|---|
+| **Entrada** | Para cada una de las 40 categorías, una lista de n enteros: el cambio neto del inventario en kg en cada hora de operación. Con 12 h/día, 300 días/año y 10 años, n ≈ 36.000. |
+| **Salida** | Para cada categoría, la tupla `(crecimiento_kg, hora_inicio, hora_fin)` del tramo de mayor crecimiento acumulado. |
+| **Restricción 1** | El tramo reportado debe ser el de **mayor** crecimiento acumulado (no uno "bastante bueno"). |
+| **Restricción 2** | El registro original no se modifica (trazabilidad sanitaria). |
+| **Volumen real** | 40 categorías × 36.000 horas; hoy tarda más de un día en el computador de 150 W. |
 
 ### 1.6 Supuestos del equipo
 
@@ -80,13 +115,27 @@ Para cada ruta, el coordinador tiene una lista de lotes candidatos y un vehícul
 - Si hay empate entre dos cargas con el mismo valor, cualquiera de las dos es válida; la programación dinámica se queda con la que no incluye el último lote evaluado (usa `>` estricto).
 - Cada vehículo se resuelve por separado: los lotes candidatos de una ruta ya vienen asignados a esa ruta.
 
+**Operación 4 (saturación)**
+
+- El tramo tiene al menos una hora. Si en toda la serie el inventario solo bajó, el "tramo de mayor crecimiento" es la hora en que menos bajó (crecimiento negativo); lo reportamos así en vez de devolver un tramo vacío.
+- Una serie vacía es un error de datos y se rechaza con `ValueError`.
+- Si hay dos tramos con el mismo crecimiento, cualquiera es correcto; las pruebas comparan el crecimiento y verifican que las horas reportadas sumen ese valor.
+- Las horas se numeran desde 0 y el tramo incluye la hora de inicio y la de fin.
+- La operación se corre una vez al mes (12 veces al año) para actualizar el dimensionamiento; el caso no dice la frecuencia y este fue nuestro supuesto para la energía anual.
+
+**Generales (permitidos por el enunciado)**
+
+- Los datos son válidos, caben en memoria y no cambian mientras corre el algoritmo.
+- No procesamos el volumen real completo para la exhaustiva ni para la fuerza bruta: generamos datos sintéticos de tamaño creciente con semilla fija y extrapolamos con la forma de la curva medida.
+- Todo corre en un solo hilo, como el computador de la fundación.
+
 ---
 
 ## 2. Diseño de la solución
 
 ### 2.1 Estructuras de datos seleccionadas
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+> ⏳ Sección en construcción.
 
 ### 2.2 Operación 3 — Cargue de los vehículos
 
@@ -166,11 +215,11 @@ Algunas casillas explicadas paso a paso:
 
 ### 2.3 Operación 4 — Análisis de saturación
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+> ⏳ Sección en construcción.
 
 ### 2.4 Cómo reducen el consumo energético las propuestas
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+> ⏳ Sección en construcción.
 
 ---
 
@@ -221,7 +270,7 @@ Los algoritmos y las pruebas están implementados en [src/cargue_vehiculos/](src
 
 ### 3.3 Operación 4 — Código del análisis de saturación
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+> ⏳ Sección en construcción.
 
 ---
 
@@ -434,7 +483,7 @@ directas de la operación real del banco de alimentos.
 
 ### 4.6 Operación 4 — Complejidad, verificación y resultados
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+> ⏳ Sección en construcción.
 
 ---
 
@@ -508,11 +557,11 @@ Se recomienda mantener la regla por vencimiento como referencia comparativa y ut
 
 ### 5.4 Operación 4 — Comparación, ventajas y limitaciones
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+> ⏳ Sección en construcción.
 
 ### 5.5 Comparación general y solución seleccionada
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+> ⏳ Sección en construcción.
 
 ---
 
@@ -547,27 +596,44 @@ Por esta razón, el mayor tiempo de procesamiento de la programación dinámica 
 
 Los valores se pueden reproducir ejecutando `python -m src.cargue_vehiculos.medicion` y consultando `resultados/cargue_vehiculos/resumen.json`.
 
+> ⏳ Sección en construcción.
+
 ### 6.2 Preguntas de impacto del caso
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+> ⏳ Sección en construcción.
 
 ### 6.3 Consecuencias sobre las personas cuando el algoritmo se equivoca o llega tarde
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+> 🚧 Sección en construcción.
 
 ### 6.4 Marco normativo y buenas prácticas
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+Investigamos las normas colombianas y las buenas prácticas que tocan la solución. Las fuentes están en la sección 8.
+
+| Norma o buena práctica | Qué exige | Cómo la respeta nuestro diseño |
+|---|---|---|
+| **Ley 9 de 1979** (Código Sanitario Nacional) | Condiciones sanitarias para manipular, almacenar y distribuir alimentos para consumo humano. | Ningún lote vencido se carga (prueba `probar_no_despacha_vencidos`). |
+| **Resolución 2674 de 2013**, Ministerio de Salud y Protección Social | Requisitos sanitarios para fabricar, almacenar, transportar y distribuir alimentos; condiciones del transporte y registros. | Ningún vehículo supera su capacidad (verificado). Los algoritmos no modifican los registros de los lotes, que son los que soportan la vigilancia sanitaria. |
+| **Resolución 5109 de 2005**, Ministerio de la Protección Social (rotulado) | La fecha de vencimiento debe estar en el rótulo de los alimentos envasados. | Usamos esa fecha (días para vencer) como dato de entrada y como barrera para no despachar vencidos. |
+| **Ley 1990 de 2019** (política contra la pérdida y el desperdicio de alimentos) | Prevenir la pérdida y el desperdicio de alimentos, y promover su donación y redistribución. | El objetivo de la propuesta es justamente que más comida salga de la bodega y llegue a tiempo; medimos el aumento de kilos despachados. |
+| **Ley 1581 de 2012** y **Decreto 1377 de 2013** (protección de datos personales) | Tratamiento de datos con autorización, finalidad y seguridad; el artículo 7 de la ley protege especialmente los datos de niños, niñas y adolescentes. | Los algoritmos trabajan solo con datos de los lotes (peso, valor, fecha) y de inventario; **no necesitan ni leen los listados de población beneficiaria**. Si se implementan cuotas por organización, se usan conteos agregados, nunca datos de los menores. |
+| **Ley 1098 de 2006** (Código de la Infancia y la Adolescencia) | Prevalencia del interés superior de los niños. | Por eso proponemos cuotas mínimas y prioridad para jardines infantiles, en vez de dejar que solo mande la eficiencia. |
+| **Codex Alimentarius, CXC 1-1969** (Principios generales de higiene de los alimentos, FAO/OMS) | Rotación de inventario, control de vencimiento y sistemas de trazabilidad/retiro de producto. | El FEFO y la exclusión de vencidos van en esa línea; el registro original no se toca, así que un retiro de producto se puede rastrear. |
+| **ISO 22005:2007** (trazabilidad en la cadena de alimentos) | Poder identificar el origen y el destino de cada lote. | Las soluciones devuelven **índices** de los lotes cargados, no copias modificadas: cada lote despachado se puede asociar a su `codigo_lote` y su donante. |
+| **Ley 842 de 2003** (código de ética de la ingeniería en Colombia) y **Código de ética de la ACM (2018)** | Proteger la salud y el bienestar de las personas, ser honestos con las limitaciones de lo que se entrega. | Declaramos los supuestos, las estimaciones y los límites de cada estrategia (por ejemplo, que la PD no mira fechas y que el 42 % depende de los datos sintéticos). |
+| **Objetivo de Desarrollo Sostenible 12.3** (ONU) | Reducir a la mitad el desperdicio de alimentos para 2030. | Más carga útil por viaje y planeación a tiempo reducen el desperdicio en la bodega. |
+
+**Trazabilidad de los datos originales.** En todo el código los lotes son tuplas (inmutables), las reglas ordenan índices en vez de reordenar la lista, y hay pruebas en las dos operaciones que comprueban que la lista original queda igual después de correr cada solución.
 
 ### 6.5 Sostenibilidad de la decisión: escenario de crecimiento
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+> ⏳ Sección en construcción.
 
 ---
 
 ## 7. Conclusiones
 
-> ⏳ Pendiente para la entrega del 23 de noviembre.
+> ⏳ Sección en construcción.
 
 ---
 
@@ -578,6 +644,20 @@ Los valores se pueden reproducir ejecutando `python -m src.cargue_vehiculos.medi
 - Bentley, J. (1984). Programming Pearls: Algorithm Design Techniques. *Communications of the ACM*, 27(9), 865–873 (origen del algoritmo de Kadane).
 - Material del curso: "Fundamentos de programación dinámica", "Estrategia voraz", "Programación dinámica: decidir, verificar y medir" y "Complemento del Laboratorio 4 — Mochila 0/1". Nodo, 2026.
 - Documentación de Python: `time.perf_counter`, `random`, `tracemalloc` (https://docs.python.org/3/library/) y matplotlib (https://matplotlib.org/stable/).
+
+**Normativa y buenas prácticas** (consultadas en el Gestor Normativo de Función Pública, https://www.funcionpublica.gov.co/eva/gestornormativo/, y en los portales de cada entidad):
+
+- Congreso de Colombia. Ley 9 de 1979, por la cual se dictan medidas sanitarias (Código Sanitario Nacional).
+- Ministerio de Salud y Protección Social. Resolución 2674 de 2013, requisitos sanitarios para personas naturales y jurídicas que ejercen actividades de fabricación, procesamiento, preparación, envase, almacenamiento, transporte, distribución y comercialización de alimentos. https://www.minsalud.gov.co
+- Ministerio de la Protección Social. Resolución 5109 de 2005, reglamento técnico sobre rotulado o etiquetado de alimentos envasados.
+- Congreso de Colombia. Ley 1990 de 2019, política para prevenir la pérdida y el desperdicio de alimentos.
+- Congreso de Colombia. Ley 1581 de 2012, disposiciones generales para la protección de datos personales; y Decreto 1377 de 2013 (compilado en el Decreto 1074 de 2015).
+- Congreso de Colombia. Ley 1098 de 2006, Código de la Infancia y la Adolescencia.
+- Congreso de Colombia. Ley 842 de 2003, Código de Ética para el ejercicio de la ingeniería en Colombia.
+- FAO/OMS. Codex Alimentarius, CXC 1-1969, Principios generales de higiene de los alimentos (rev. 2020). https://www.fao.org/fao-who-codexalimentarius/
+- ISO 22005:2007, Trazabilidad en la cadena de piensos y alimentos. https://www.iso.org
+- ACM (2018). ACM Code of Ethics and Professional Conduct. https://www.acm.org/code-of-ethics
+- Naciones Unidas. Objetivo de Desarrollo Sostenible 12, meta 12.3. https://sdgs.un.org/goals/goal12
 
 ---
 
