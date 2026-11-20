@@ -626,7 +626,7 @@ Todas pasan. Además, [medicion.py](src/saturacion_bodega/medicion.py) verifica 
 | Dividir y vencer | Θ(n log n) | Θ(log n) por la pila de recursión | horas recorridas en todos los niveles |
 | Kadane | Θ(n) | Θ(1) | n horas |
 
-**Cómo medimos.** Series generadas con [datos.py](src/saturacion_bodega/datos.py) (semilla 4000 + n), las mismas para las tres estrategias; `perf_counter` solo alrededor de la llamada; 3 repeticiones para la fuerza bruta, 10 para dividir y vencer y 30 para Kadane, y se promedia. Tamaños: n = 250 a 8.000 para las tres (con 8.000 la fuerza bruta ya tarda un segundo) y n = 9.000 a 288.000 para las dos rápidas. Datos crudos en [resultados/saturacion_bodega/](resultados/saturacion_bodega/).
+**Cómo medimos.** Series generadas con [datos.py](src/saturacion_bodega/datos.py) (semilla 4000 + n), las mismas para las tres estrategias; `perf_counter` solo alrededor de la llamada; 3 repeticiones para la fuerza bruta, 10 para dividir y vencer y 30 para Kadane (5 y 20 con n grande), y se promedia. Tamaños: n = 250 a 8.000 para las tres (con 8.000 la fuerza bruta ya tarda casi dos segundos) y n = 9.000 a 288.000 para las dos rápidas. Datos crudos en [resultados/saturacion_bodega/](resultados/saturacion_bodega/).
 
 ![Tiempo frente a n, saturación](graficas/saturacion_bodega/tiempo_vs_n.png)
 
@@ -634,15 +634,15 @@ Todas pasan. Además, [medicion.py](src/saturacion_bodega/medicion.py) verifica 
 
 | n (horas) | Fuerza bruta (ms) | Dividir y vencer (ms) | Kadane (ms) |
 |---|---|---|---|
-| 250 | 0,87 | 0,17 | 0,012 |
-| 500 | 3,6 | 0,30 | 0,022 |
-| 1.000 | 15,2 | 0,69 | 0,059 |
-| 2.000 | 59,8 | 1,39 | 0,087 |
-| 4.000 | 253,4 | 3,12 | 0,18 |
-| 8.000 | 1.059,8 | 6,56 | 0,39 |
-| 36.000 | — | 29,5 | 1,67 |
-| 72.000 | — | 62,4 | 3,23 |
-| 288.000 | — | 273,7 | 13,8 |
+| 250 | 1,80 | 0,29 | 0,031 |
+| 500 | 8,2 | 0,64 | 0,058 |
+| 1.000 | 39,9 | 1,36 | 0,093 |
+| 2.000 | 120,5 | 2,83 | 0,18 |
+| 4.000 | 489,6 | 6,28 | 0,41 |
+| 8.000 | 1.918,4 | 12,07 | 0,72 |
+| 36.000 | — | 58,7 | 3,21 |
+| 72.000 | — | 120,8 | 6,30 |
+| 288.000 | — | 520,0 | 25,8 |
 
 En la gráfica log-log las tres son rectas, y la **pendiente** es el exponente: la de la fuerza bruta es el doble de empinada que la de Kadane (n² contra n), y la de dividir y vencer queda apenas por encima de la de Kadane (el factor log n). En el panel derecho Kadane es una línea casi plana y dividir y vencer una recta ligeramente curvada hacia arriba.
 
@@ -650,27 +650,27 @@ En la gráfica log-log las tres son rectas, y la **pendiente** es el exponente: 
 
 | Pareja | Estrategia | Factor esperado | Factor en operaciones | Factor en tiempo |
 |---|---|---|---|---|
-| 4.000 → 8.000 | Fuerza bruta | 4 | 4,00 | 4,18 |
-| 4.000 → 8.000 | Dividir y vencer | 2·log(8.000)/log(4.000) ≈ 2,17 | 2,15 | 2,10 |
-| 4.000 → 8.000 | Kadane | 2 | 2,00 | 2,14 |
-| 36.000 → 72.000 | Dividir y vencer | ≈ 2,13 | 2,12 | 2,11 |
-| 36.000 → 72.000 | Kadane | 2 | 2,00 | 1,94 |
+| 4.000 → 8.000 | Fuerza bruta | 4 | 4,00 | 3,92 |
+| 4.000 → 8.000 | Dividir y vencer | 2·log(8.000)/log(4.000) ≈ 2,17 | 2,15 | 1,92 |
+| 4.000 → 8.000 | Kadane | 2 | 2,00 | 1,75 |
+| 36.000 → 72.000 | Dividir y vencer | ≈ 2,13 | 2,12 | 2,06 |
+| 36.000 → 72.000 | Kadane | 2 | 2,00 | 1,96 |
 
-Todo coincide con la teoría con un margen de ±7 %. La fuerza bruta se multiplica por 4 (cuadrática); dividir y vencer un poco más que 2 (el log n crece despacio); Kadane por 2 (lineal). Las pequeñas diferencias en tiempo son ruido y efectos de caché; en operaciones los factores son prácticamente exactos.
+En operaciones los factores son prácticamente exactos: la fuerza bruta se multiplica por 4 (cuadrática), dividir y vencer un poco más que 2 (el log n crece despacio) y Kadane por 2 (lineal). En tiempo, con los tamaños grandes (36.000 → 72.000) la diferencia con la teoría es de menos del 4 %. Con 4.000 → 8.000 las dos rápidas se quedan hasta un 13 % por debajo de lo esperado: ahí tardan menos de un milisegundo y el ruido del reloj y los efectos de caché pesan más. Por eso, para las rápidas, nos fiamos más de las operaciones y de los tamaños grandes.
 
 **Extrapolación al volumen real (40 categorías × 36.000 horas)**
 
-Las dos estrategias rápidas **las medimos directamente** sobre 40 series de 36.000 horas. La fuerza bruta no (tardaría demasiado para repetirla), así que la extrapolamos con su forma cuadrática, que ya comprobamos: t(36.000) = t(8.000) × (36.000 / 8.000)² = 1,06 s × 20,25 ≈ 21,5 s por categoría, y × 40 ≈ **858 s ≈ 14,3 minutos**.
+Las dos estrategias rápidas **las medimos directamente** sobre 40 series de 36.000 horas. La fuerza bruta no (tardaría demasiado para repetirla), así que la extrapolamos con su forma cuadrática, que ya comprobamos: t(36.000) = t(8.000) × (36.000 / 8.000)² = 1,92 s × 20,25 ≈ 38,8 s por categoría, y × 40 ≈ **1.554 s ≈ 25,9 minutos**.
 
 ![Volumen real, saturación](graficas/saturacion_bodega/volumen_real.png)
 
-| Estrategia | 40 categorías (nuestro equipo) | Con el factor ≈ 100 del equipo del cliente | Energía por corrida (0,15 kW) |
+| Estrategia | 40 categorías (nuestro equipo) | Con el factor ≈ 55 del equipo del cliente | Energía por corrida (0,15 kW) |
 |---|---|---|---|
-| Fuerza bruta (actual) | ≈ 14,3 min (estimado) | > 24 h (dato del cliente) | 0,036 kWh (nuestro) / ≥ 3,6 kWh (cliente) |
-| Dividir y vencer | 1,26 s (medido) | ≈ 2 min | 5,2 × 10⁻⁵ kWh |
-| Kadane | 0,074 s (medido) | ≈ 7 s | 3,1 × 10⁻⁶ kWh |
+| Fuerza bruta (actual) | ≈ 25,9 min (estimado) | > 24 h (dato del cliente) | 0,065 kWh (nuestro) / ≥ 3,6 kWh (cliente) |
+| Dividir y vencer | 2,45 s (medido) | ≈ 2 min | 1,0 × 10⁻⁴ kWh |
+| Kadane | 0,13 s (medido) | ≈ 7 s | 5,4 × 10⁻⁶ kWh |
 
-Aquí encontramos algo que vale la pena decir: nuestra extrapolación de la fuerza bruta da 14 minutos, pero el cliente dice que tarda **más de un día**. Esa diferencia de ≈ 100 veces puede venir de que el computador del banco es más viejo, de que el programa lee los datos de disco o de una base de datos mientras calcula, o de que recalcula cada suma desde cero (eso sería Θ(n³)). No lo podemos saber con la información del caso, por eso dejamos las dos cifras: la nuestra, medida y conservadora, y la del cliente. Lo importante es que **la proporción entre estrategias no depende del equipo**: con n = 36.000, Kadane hace 36.000 operaciones donde la fuerza bruta hace 648 millones, unas **18.000 veces menos**.
+Aquí encontramos algo que vale la pena decir: nuestra extrapolación de la fuerza bruta da 26 minutos, pero el cliente dice que tarda **más de un día**. Esa diferencia de ≈ 55 veces puede venir de que el computador del banco es más viejo, de que el programa lee los datos de disco o de una base de datos mientras calcula, o de que recalcula cada suma desde cero (eso sería Θ(n³)). No lo podemos saber con la información del caso, por eso dejamos las dos cifras: la nuestra, medida y conservadora, y la del cliente. Lo importante es que **la proporción entre estrategias no depende del equipo**: con n = 36.000, Kadane hace 36.000 operaciones donde la fuerza bruta hace 648 millones, unas **18.000 veces menos**.
 
 ---
 
@@ -747,7 +747,7 @@ Se recomienda mantener la regla por vencimiento como referencia comparativa y ut
 | Estrategia | Ventajas | Limitaciones |
 |---|---|---|
 | Fuerza bruta (actual) | Muy fácil de entender y de verificar; sirve como juez en series pequeñas. | Θ(n²): con 10 años de datos no termina en un tiempo útil; si el histórico se duplica, el tiempo se multiplica por 4. |
-| Dividir y vencer | Θ(n log n): de más de un día a segundos; la idea se puede paralelizar (las dos mitades son independientes) si algún día se necesita. | Más difícil de programar (tres casos y recursión); usa memoria de pila Θ(log n); es ≈ 17 veces más lenta que Kadane en nuestras mediciones. |
+| Dividir y vencer | Θ(n log n): de más de un día a segundos; la idea se puede paralelizar (las dos mitades son independientes) si algún día se necesita. | Más difícil de programar (tres casos y recursión); usa memoria de pila Θ(log n); es ≈ 19 veces más lenta que Kadane en nuestras mediciones. |
 | Kadane (PD) | Θ(n) y memoria Θ(1): la más rápida posible, porque cualquier algoritmo tiene que leer al menos una vez cada hora. Muy corta (≈ 15 líneas). Se puede actualizar hora a hora sin recalcular todo. | Hay que entender bien la recurrencia para no equivocarse con los índices del tramo; sin las pruebas contra la fuerza bruta sería fácil tener un error en el inicio del tramo. |
 
 **Recomendación para la operación 4: Kadane.** Da exactamente el mismo resultado que el programa actual (verificado en 300 series y en el ejemplo a mano), es la más rápida y la que menos memoria usa. Dejamos dividir y vencer implementada porque fue la que nos permitió validar Kadane con una segunda estrategia independiente, y porque es la base si en el futuro se quiere repartir el cálculo entre varios procesadores.
@@ -757,7 +757,7 @@ Se recomienda mantener la regla por vencimiento como referencia comparativa y ut
 | Criterio | Operación 3: PD (mochila 0/1) | Operación 4: Kadane |
 |---|---|---|
 | Complejidad actual → propuesta | Θ(n log n) pero inexacta → Θ(n·W) exacta | Θ(n²) → Θ(n) |
-| Tiempo real estimado | ≈ 2 ms → 0,8 s por día | > 24 h (cliente) / 14 min (nuestro) → 0,07 s |
+| Tiempo real estimado | ≈ 2 ms → 0,8 s por día | > 24 h (cliente) / 26 min (nuestro) → 0,13 s |
 | Qué mejora | **La calidad de la respuesta**: valor máximo y vehículos llenos | **El tiempo y la energía**: ≈ 18.000 veces menos operaciones |
 | Restricción del cliente | Valor máximo, nunca superar capacidad, sin fraccionar: cumplida y probada | Tramo de mayor crecimiento: cumplida y probada |
 | Riesgo principal | Depende de W (pseudo-polinomial) y no considera fechas | Ninguno relevante en este volumen |
@@ -804,10 +804,10 @@ Los valores se pueden reproducir ejecutando `python -m src.cargue_vehiculos.medi
 | Estrategia | Energía por corrida | Energía al año |
 |---|---|---|
 | Fuerza bruta (dato del cliente, > 24 h) | ≥ 3,6 kWh | **≥ 43,2 kWh** |
-| Fuerza bruta (nuestra estimación, 14,3 min) | 0,036 kWh | 0,43 kWh |
-| Kadane (medido, 0,074 s) | 3,1 × 10⁻⁶ kWh | ≈ 3,7 × 10⁻⁵ kWh (≈ 0,004 kWh con el factor ×100 del equipo del cliente) |
+| Fuerza bruta (nuestra estimación, 25,9 min) | 0,065 kWh | 0,78 kWh |
+| Kadane (medido, 0,13 s) | 5,4 × 10⁻⁶ kWh | ≈ 6,5 × 10⁻⁵ kWh (≈ 0,004 kWh con el factor ×55 del equipo del cliente) |
 
-**Ahorro anual de la operación 4: ≈ 43 kWh** con las cifras del cliente (o 0,43 kWh con las nuestras). Es casi el **100 %** del consumo de esa operación.
+**Ahorro anual de la operación 4: ≈ 43 kWh** con las cifras del cliente (o 0,78 kWh con las nuestras). Es casi el **100 %** del consumo de esa operación.
 
 **Proceso completo.** La línea base era ≥ 245,7 kWh/año (202,5 de la planeación + 43,2 de la saturación). Con nuestras dos propuestas:
 
@@ -874,8 +874,8 @@ El caso pregunta qué pasa si el banco abre una segunda bodega y **duplica el n�
 | Op. 3, PD Θ(n·W) | 28 vehículos y hasta 1.200 lotes por ruta (W igual) | ×2 por ruta y ×2 por número de rutas = **×4** | ≈ 3,2 s por día (peor caso ≈ 5 s) |
 | Op. 3, exhaustiva | — | sigue sin terminar | — |
 | Op. 3, regla actual | lo mismo | ≈ ×4,4 | milisegundos, pero sigue sin dar el óptimo |
-| Op. 4, Kadane Θ(n) | 80 categorías (si la segunda bodega se analiza aparte) | ×2 | ≈ 0,15 s |
-| Op. 4, fuerza bruta Θ(n²) | 80 categorías | ×2 | ≈ 28,6 min en nuestro equipo; **más de 2 días** en el del cliente |
+| Op. 4, Kadane Θ(n) | 80 categorías (si la segunda bodega se analiza aparte) | ×2 | ≈ 0,26 s |
+| Op. 4, fuerza bruta Θ(n²) | 80 categorías | ×2 | ≈ 51,8 min en nuestro equipo; **más de 2 días** en el del cliente |
 | Op. 4, fuerza bruta, 20 años de histórico | n se duplica | **×4** | más de 4 días con 40 categorías en el equipo del cliente |
 
 Las dos estrategias que recomendamos aguantan el crecimiento sin cambiar de computador. El punto a vigilar es la **capacidad W**: si llegaran vehículos de 10.000 kg, la PD tardaría 2,5 veces más por ruta (sigue siendo segundos), pero si alguien cambia la unidad a gramos, la tabla se vuelve mil veces más grande. La memoria de la PD (≈ 41 MB por ruta) se libera al terminar cada vehículo, así que no se acumula con más vehículos.
@@ -905,7 +905,7 @@ A futuro, si el banco creciera mucho más (por ejemplo, varias bodegas con vehí
 - "Más rápido" no siempre es "mejor": en la operación 3 escogimos un algoritmo más costoso que el actual porque el actual no cumple lo que pidió el cliente.
 - Una complejidad como Θ(n·W) engaña si uno solo mira n; hay que medir variando W por separado para verlo.
 - Medir microsegundos es ruidoso; contar operaciones fue más confiable que el reloj para las reglas rápidas.
-- Las cifras del cliente y las nuestras no siempre coinciden (la saturación: 14 minutos contra más de un día). Es mejor mostrar las dos y explicar por qué pueden diferir que esconder la diferencia.
+- Las cifras del cliente y las nuestras no siempre coinciden (la saturación: 26 minutos contra más de un día). Es mejor mostrar las dos y explicar por qué pueden diferir que esconder la diferencia.
 
 ### 7.3 Recomendaciones y mejoras futuras
 
@@ -914,7 +914,7 @@ A futuro, si el banco creciera mucho más (por ejemplo, varias bodegas con vehí
 3. **Operación 1 (consultas):** guardar el inventario en una **tabla hash** por `codigo_lote` (consulta Θ(1) promedio, en vez de recorrer 220.000 lotes) y en un **arreglo ordenado por fecha con búsqueda binaria** (o un árbol de búsqueda balanceado) para el rango "¿qué vence en 72 horas?": Θ(log n + k) en vez de Θ(n).
 4. **Operación 2 (FEFO):** ordenar solo los 6.000–9.000 lotes nuevos del día con un ordenamiento Θ(k log k) (por ejemplo, mergesort) e **intercalarlos** con la lista que ya estaba ordenada en Θ(n + k). Estimamos ≈ 3,4 × 10⁵ operaciones en vez de ≈ 10⁹ de la inserción, unas 3.000 veces menos. Con las operaciones 1 a 4 mejoradas, la planeación debería terminar en minutos y no en 4,5 horas. Esto es una estimación teórica: la siguiente fase debería implementarlo y medirlo con el mismo método de este informe.
 5. Validar el modelo con datos reales de una semana del banco (pesos, raciones, prioridades), porque el porcentaje de mejora del valor depende mucho de los datos.
-6. Medir el tiempo en el computador real de la fundación para reemplazar nuestro factor de "≈ 100 veces más lento" por un dato medido.
+6. Medir el tiempo en el computador real de la fundación para reemplazar nuestro factor de "≈ 55 veces más lento" por un dato medido.
 
 ---
 
