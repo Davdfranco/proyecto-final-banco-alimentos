@@ -374,7 +374,25 @@ Los algoritmos y las pruebas están implementados en [src/cargue_vehiculos/](src
 
 ### 3.3 Operación 4 — Código del análisis de saturación
 
-> ⏳ Sección en construcción.
+Todo está en [src/saturacion_bodega/](src/saturacion_bodega/):
+
+| Archivo | Qué contiene |
+|---|---|
+| [estrategia.py](src/saturacion_bodega/estrategia.py) | `tramo_kadane` (propuesta, programación dinámica) y `analizar_categorias` para las 40 categorías. |
+| [dividir_vencer.py](src/saturacion_bodega/dividir_vencer.py) | `tramo_dividir_vencer`, con `tramo_recursivo` y `tramo_que_cruza`. |
+| [regla_actual.py](src/saturacion_bodega/regla_actual.py) | `tramo_fuerza_bruta`: revisa todos los tramos (lo que se hace hoy). |
+| [datos.py](src/saturacion_bodega/datos.py) | Series sintéticas por hora con patrón diario y temporadas. |
+| [pruebas.py](src/saturacion_bodega/pruebas.py) | Pruebas con `assert`. |
+| [medicion.py](src/saturacion_bodega/medicion.py) | Experimentos y gráficas. |
+
+**Decisiones de implementación**
+
+- Las tres funciones devuelven la misma tupla `(crecimiento_kg, hora_inicio, hora_fin)`, así se pueden comparar directamente.
+- La fuerza bruta acumula la suma mientras extiende el tramo hacia la derecha (cada tramo cuesta Θ(1)). Es la versión **más favorable** del programa actual; si el programa del banco recalculara cada suma desde cero sería Θ(n³) y aún más lento. Preferimos compararnos contra la versión buena para no inflar la mejora.
+- En dividir y vencer la recursión tiene profundidad ⌈log₂ n⌉ ≈ 16 para 36.000 horas, muy lejos del límite de recursión de Python, así que no hubo que convertirla a iterativa.
+- Kadane reinicia el tramo cuando lo acumulado es negativo (`aqui + valor < valor`); si es exactamente 0 lo extiende. Ambas opciones son correctas.
+- Ninguna función modifica la lista que recibe (hay una prueba para eso), por la trazabilidad del registro original.
+- Los datos sintéticos tienen ruido de hora a hora (desviación de 150 kg), un patrón diario (más ingresos en la mañana y más despachos en la tarde) y una temporada de unos 20 días por año en la que el inventario tiende a crecer. Así el tramo de mayor crecimiento se parece a una temporada real (entre 4 y 7 semanas en nuestras series) y no a una sola hora suelta.
 
 ---
 
@@ -587,7 +605,18 @@ directas de la operación real del banco de alimentos.
 
 ### 4.6 Operación 4 — Complejidad, verificación y resultados
 
-> ⏳ Sección en construcción.
+**Verificación.** Las pruebas están en [pruebas.py](src/saturacion_bodega/pruebas.py) (`python -m src.saturacion_bodega.pruebas`):
+
+| Grupo | Qué verifica |
+|---|---|
+| Casos límite | Serie vacía (las tres lanzan `ValueError`); una hora positiva; una hora negativa; todo negativo (devuelve la hora que menos bajó); todo positivo (devuelve la serie completa); todo en cero. |
+| Ejemplo a mano | Las tres devuelven (150, 2, 5) en el ejemplo de la sección 2.3. |
+| 300 series aleatorias (semilla 2026) | Dividir y vencer y Kadane dan el **mismo crecimiento** que la fuerza bruta, y las horas que reportan suman exactamente ese crecimiento. |
+| Restricción del negocio | Para una serie de 40 horas se revisan los 820 tramos posibles y ninguno crece más que el reportado por Kadane. |
+| Trazabilidad | Ninguna de las tres modifica la serie original. |
+| Varias categorías | `analizar_categorias` coincide con la fuerza bruta en cada una de 5 categorías de 300 horas. |
+
+Todas pasan. Además, [medicion.py](src/saturacion_bodega/medicion.py) verifica en cada tamaño medido que las estrategias den el mismo crecimiento.
 
 ---
 
@@ -661,11 +690,25 @@ Se recomienda mantener la regla por vencimiento como referencia comparativa y ut
 
 ### 5.4 Operación 4 — Comparación, ventajas y limitaciones
 
-> ⏳ Sección en construcción.
+| Estrategia | Ventajas | Limitaciones |
+|---|---|---|
+| Fuerza bruta (actual) | Muy fácil de entender y de verificar; sirve como juez en series pequeñas. | Θ(n²): con 10 años de datos no termina en un tiempo útil; si el histórico se duplica, el tiempo se multiplica por 4. |
+| Dividir y vencer | Θ(n log n): de más de un día a segundos; la idea se puede paralelizar (las dos mitades son independientes) si algún día se necesita. | Más difícil de programar (tres casos y recursión); usa memoria de pila Θ(log n); es ≈ 17 veces más lenta que Kadane en nuestras mediciones. |
+| Kadane (PD) | Θ(n) y memoria Θ(1): la más rápida posible, porque cualquier algoritmo tiene que leer al menos una vez cada hora. Muy corta (≈ 15 líneas). Se puede actualizar hora a hora sin recalcular todo. | Hay que entender bien la recurrencia para no equivocarse con los índices del tramo; sin las pruebas contra la fuerza bruta sería fácil tener un error en el inicio del tramo. |
+
+**Recomendación para la operación 4: Kadane.** Da exactamente el mismo resultado que el programa actual (verificado en 300 series y en el ejemplo a mano), es la más rápida y la que menos memoria usa. Dejamos dividir y vencer implementada porque fue la que nos permitió validar Kadane con una segunda estrategia independiente, y porque es la base si en el futuro se quiere repartir el cálculo entre varios procesadores.
 
 ### 5.5 Comparación general y solución seleccionada
 
-> ⏳ Sección en construcción.
+| Criterio | Operación 3: PD (mochila 0/1) | Operación 4: Kadane |
+|---|---|---|
+| Complejidad actual → propuesta | Θ(n log n) pero inexacta → Θ(n·W) exacta | Θ(n²) → Θ(n) |
+| Tiempo real estimado | ≈ 2 ms → 0,8 s por día | > 24 h (cliente) / 14 min (nuestro) → 0,07 s |
+| Qué mejora | **La calidad de la respuesta**: valor máximo y vehículos llenos | **El tiempo y la energía**: ≈ 18.000 veces menos operaciones |
+| Restricción del cliente | Valor máximo, nunca superar capacidad, sin fraccionar: cumplida y probada | Tramo de mayor crecimiento: cumplida y probada |
+| Riesgo principal | Depende de W (pseudo-polinomial) y no considera fechas | Ninguno relevante en este volumen |
+
+Las dos operaciones muestran lados distintos del análisis de algoritmos. En la 3, la estrategia que proponemos es **más costosa** que la actual y aun así es la correcta, porque la actual no cumple la restricción del negocio y el costo extra es despreciable. En la 4 pasa lo contrario: el resultado no cambia, lo que cambia es que pasamos de un algoritmo que no termina a uno instantáneo. Por eso no escogimos "el algoritmo más rápido" en general, sino el que **cumple la restricción con el menor costo** en cada caso.
 
 ---
 
@@ -704,11 +747,29 @@ Los valores se pueden reproducir ejecutando `python -m src.cargue_vehiculos.medi
 
 ### 6.2 Preguntas de impacto del caso
 
-> ⏳ Sección en construcción.
+**¿Qué pasa con un jardín infantil que nunca queda en el cargue óptimo?**
+
+Es un riesgo real de nuestra propuesta. La PD maximiza el valor nutricional **de cada ruta**, pero no sabe nada de a quién va la comida. Si la ruta de un jardín tiene pocos lotes candidatos, o lotes de poco valor ponderado, puede recibir menos que otras de forma sistemática, y eso no se ve en ningún indicador de "eficiencia". Además los niños son población con más vulnerabilidad nutricional. Como mitigación proponemos:
+
+- **Cuota mínima por organización:** antes de correr la PD, se suben los lotes que garantizan el mínimo semanal de cada beneficiario (por ejemplo, proteína para el jardín), y la PD optimiza solo la capacidad que queda. La respuesta sigue siendo exacta para esa capacidad restante.
+- **Prioridad por población:** aumentar el peso de la categoría en el valor nutricional cuando la ruta atiende niños o adultos mayores. Eso no cambia el algoritmo, solo los datos de entrada.
+- **Seguimiento:** un reporte mensual de kilos y raciones entregadas por organización, para detectar a quién está dejando por fuera el algoritmo. La decisión de cómo repartir la tienen que tomar las personas de la Dirección, no el algoritmo.
+
+**¿Y si un error en el ordenamiento FEFO despacha un lote vencido?**
+
+Es el peor error posible: comida vencida para consumo humano, posiblemente para niños. Por eso no dejamos que dependa de una sola operación. En nuestro código, **ninguna de las cuatro soluciones del cargue sube un lote con 0 días o menos para vencer**, sin importar cómo venga ordenada la lista (hay una prueba específica para eso). Es una segunda barrera: aunque el FEFO falle, el cargue no lo sube. También recomendamos que, antes de salir, el operario confirme la fecha de cada lote al escanearlo en el alistamiento.
+
+**Riesgo adicional que encontramos: la PD no mira el vencimiento.** Como solo maximiza valor, puede dejar en la bodega un lote que vence mañana. Eso iría en contra de la política FEFO y del objetivo de no desperdiciar. La forma de corregirlo sin perder exactitud es incluir la urgencia en el valor del lote (por ejemplo, multiplicar el valor por un factor mayor cuando le quedan 1 o 2 días), o separar los lotes urgentes y cargarlos primero. Lo dejamos como mejora prioritaria en la sección 7.3.
 
 ### 6.3 Consecuencias sobre las personas cuando el algoritmo se equivoca o llega tarde
 
-> 🚧 Sección en construcción.
+| Falla | Quién asume el costo | Cómo se mitiga desde el diseño |
+|---|---|---|
+| La planeación termina tarde | Las organizaciones reciben la comida después de cocinar; los perecederos se vencen | Algoritmos que caben en la ventana con margen (la PD tarda menos de un segundo); si algo falla, la regla por densidad sirve como plan B rápido (98,6 % del óptimo en promedio). |
+| El cargue supera la capacidad | Conductores y vehículos (riesgo vial, sanciones) | La restricción se prueba en las 300 instancias aleatorias y en los casos límite; la PD nunca puede elegir más peso que W por construcción. |
+| Se despacha un lote vencido | Los beneficiarios (riesgo de salud) | Doble barrera: FEFO y exclusión de vencidos en el cargue. |
+| El tramo de saturación reportado no es el mayor | La fundación (cuarto frío mal dimensionado: alimentos que no caben y se dañan, o un alquiler que se paga de más) | Kadane verificado contra la fuerza bruta en 300 series y contra todos los tramos posibles. |
+| Una ruta queda siempre con poca carga | Organizaciones pequeñas o de rutas con pocos candidatos | Cuotas mínimas y seguimiento por organización. |
 
 ### 6.4 Marco normativo y buenas prácticas
 
@@ -782,7 +843,7 @@ A futuro, si el banco creciera mucho más (por ejemplo, varias bodegas con vehí
 
 ## 9. Cómo reproducir los datos y los experimentos
 
-Los experimentos de la operación 3 se pueden reproducir utilizando Python 3 y las dependencias del proyecto.
+Los experimentos de las operaciones 3 y 4 se pueden reproducir utilizando Python 3 y las dependencias del proyecto.
 
 ### 9.1 Preparación del entorno
 
@@ -811,6 +872,14 @@ python -m src.cargue_vehiculos.pruebas
 ~~~
 
 Las pruebas incluyen casos límite, contraejemplos y 300 instancias aleatorias reproducibles.
+
+Para la operación 4:
+
+~~~powershell
+python -m src.saturacion_bodega.pruebas
+~~~
+
+Debe imprimir `saturacion_bodega: todas las pruebas pasaron`. Compara Kadane y dividir y vencer contra la fuerza bruta en 300 series aleatorias, además de los casos límite y la trazabilidad.
 
 ### 9.3 Ejecutar los experimentos
 
