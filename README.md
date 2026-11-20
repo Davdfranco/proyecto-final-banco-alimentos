@@ -135,7 +135,15 @@ La Dirección quiere saber, para cada categoría, en qué tramo de horas seguida
 
 ### 2.1 Estructuras de datos seleccionadas
 
-> ⏳ Sección en construcción.
+| Estructura | Dónde | Por qué la escogimos |
+|---|---|---|
+| Tupla `(peso_kg, valor, dias_para_vencer)` | Cada lote (operación 3) | Es inmutable: ninguna función puede cambiar el registro original de un lote, que es lo que pide la trazabilidad sanitaria. |
+| Lista de listas `K[i][w]` (tabla de (n+1)×(W+1) enteros) | Programación dinámica del cargue | Acceso Θ(1) por posición. Guardamos la tabla completa (y no solo una fila) porque la necesitamos para reconstruir **qué** lotes suben, no solo cuánto valen. |
+| Entero como máscara de bits | Solución exhaustiva | Cada número de 0 a 2ⁿ−1 representa un subconjunto; el bit i dice si el lote i sube. Recorre todos los subconjuntos sin crear listas. |
+| Lista de índices ordenada | Reglas por vencimiento y por densidad | Ordenamos los índices (no los lotes), así la lista original no se toca. |
+| Lista de enteros (serie por hora) | Operación 4 | Acceso por posición y recorrido secuencial; es lo único que necesitan las tres estrategias. |
+| Diccionario `categoría → serie` | Operación 4, varias categorías | Acceso Θ(1) a la serie de cada categoría y resultado con la misma clave. |
+| Variables escalares (`aqui`, `mejor`) | Kadane | La recurrencia solo depende del valor anterior, así que no hace falta guardar una tabla: memoria adicional Θ(1). |
 
 ### 2.2 Operación 3 — Cargue de los vehículos
 
@@ -213,13 +221,109 @@ Algunas casillas explicadas paso a paso:
 
 **Resultado óptimo: guayaba (L2) + fríjol (L4), 10 kg exactos y valor 34.** Este mismo ejemplo está como prueba en `pruebas.py`.
 
+#### Pseudocódigo de la propuesta (operación 3)
+
+```
+función CARGAR_VEHICULO(lotes, W):
+    n ← |lotes|
+    K ← tabla de (n+1) × (W+1) llena de 0
+    para i ← 1 hasta n:
+        (peso, valor, dias) ← lotes[i-1]
+        para w ← 0 hasta W:
+            K[i][w] ← K[i-1][w]                       ▷ no subir el lote
+            si dias > 0 y peso ≤ w y valor + K[i-1][w-peso] > K[i][w]:
+                K[i][w] ← valor + K[i-1][w-peso]      ▷ subirlo
+    elegidos ← [] ; w ← W
+    para i ← n bajando hasta 1:                      ▷ reconstrucción
+        si K[i][w] ≠ K[i-1][w]:
+            agregar i-1 a elegidos ; w ← w - peso(i-1)
+    devolver K[n][W], elegidos en orden creciente
+```
+
+```
+Diagrama del flujo de una ruta
+
+ lotes candidatos ──► ¿vencido? ──sí──► se descarta
+        │                 no
+        ▼
+ tabla K fila por fila (Θ(n·W)) ──► K[n][W] = valor máximo
+        │
+        ▼
+ reconstrucción de abajo hacia arriba (Θ(n)) ──► índices de los lotes que suben
+```
+
 ### 2.3 Operación 4 — Análisis de saturación
 
-> ⏳ Sección en construcción.
+Diseñamos tres estrategias. La primera es la que usa hoy el banco y las otras dos son nuestras propuestas.
+
+| Estrategia | Familia | Idea | Complejidad |
+|---|---|---|---|
+| Todos los tramos (actual) | Fuerza bruta | Para cada hora de inicio, va sumando hacia la derecha y guarda el mejor tramo. | Θ(n²) tiempo, Θ(1) memoria |
+| Dividir y vencer | Dividir y vencer | Parte la serie en dos mitades; el mejor tramo está a la izquierda, a la derecha o cruza el medio. | Θ(n log n) tiempo, Θ(log n) pila |
+| Kadane | Programación dinámica | Una sola pasada guardando el mejor tramo que termina en la hora actual. | Θ(n) tiempo, Θ(1) memoria |
+
+#### Por qué el problema admite dividir y vencer
+
+Cualquier tramo de la serie `A[bajo..alto]` cae en uno de tres casos: está todo en la mitad izquierda, todo en la derecha, o cruza el punto medio. Los dos primeros son **el mismo problema con la mitad del tamaño** (se resuelven con recursión). El tercero no necesita recursión: un tramo que cruza el medio es "el mejor sufijo de la izquierda" + "el mejor prefijo de la derecha", y eso se calcula en tiempo lineal caminando desde el medio hacia los lados. Combinar es tomar el mayor de los tres. La recurrencia queda
+
+```
+T(1) = Θ(1)
+T(n) = 2·T(n/2) + Θ(n)      →   T(n) = Θ(n log n)   (caso 2 del teorema maestro)
+```
+
+#### Por qué el problema admite programación dinámica (Kadane)
+
+Definimos **M[i]** = el mayor crecimiento de un tramo que **termina exactamente** en la hora i. Un tramo que termina en i es solo la hora i, o es un tramo que terminaba en i−1 más la hora i. Si el mejor tramo que termina en i se extiende hacia atrás, esa parte tiene que ser el mejor tramo que termina en i−1 (subestructura óptima, por el mismo argumento de cortar y pegar). Entonces:
+
+```
+M[0] = A[0]
+M[i] = max( A[i] , M[i-1] + A[i] )        para i = 1..n-1
+Respuesta = max( M[0], M[1], ..., M[n-1] )
+```
+
+- `A[i]`: empezar un tramo nuevo en la hora i (conviene cuando lo que venía acumulado es negativo).
+- `M[i-1] + A[i]`: extender el tramo que venía.
+- El orden de llenado es de izquierda a derecha, y como M[i] solo usa M[i−1], no hace falta guardar la tabla: basta una variable. Por eso la memoria es Θ(1).
+
+En el análisis de saturación, el subproblema "mejor tramo que termina en i−1" lo necesitan todos los tramos que terminan en i, i+1, … La fuerza bruta lo recalcula una y otra vez; Kadane lo calcula una sola vez.
+
+#### Ejemplo pequeño resuelto a mano
+
+Ocho horas de una categoría, cambio neto en kg: `A = [30, −50, 40, 60, −20, 70, −90, 10]`.
+
+| Hora i | A[i] | M[i−1] + A[i] | M[i] = max(A[i], M[i−1]+A[i]) | ¿Empieza de nuevo? | Mejor hasta aquí |
+|---|---|---|---|---|---|
+| 0 | 30 | — | 30 | sí (hora 0) | 30, horas 0–0 |
+| 1 | −50 | −20 | −20 | no | 30, horas 0–0 |
+| 2 | 40 | 20 | 40 | **sí** (lo de antes sumaba −20) | 40, horas 2–2 |
+| 3 | 60 | 100 | 100 | no | 100, horas 2–3 |
+| 4 | −20 | 80 | 80 | no | 100, horas 2–3 |
+| 5 | 70 | 150 | 150 | no | **150, horas 2–5** |
+| 6 | −90 | 60 | 60 | no | 150, horas 2–5 |
+| 7 | 10 | 70 | 70 | no | 150, horas 2–5 |
+
+**Resultado: el inventario creció 150 kg entre la hora 2 y la hora 5.** Con dividir y vencer: la mitad izquierda `[30, −50, 40, 60]` da 100 (horas 2–3), la derecha `[−20, 70, −90, 10]` da 70 (hora 5), y el mejor tramo que cruza el medio (entre las horas 3 y 4) es 40 + 60 (sufijo izquierdo, horas 2–3) + (−20 + 70) (prefijo derecho, horas 4–5) = 150. El mayor de los tres es 150, igual que Kadane. La fuerza bruta revisa los 8·9/2 = 36 tramos y llega a lo mismo. Este ejemplo también está en `pruebas.py`.
+
+#### Pseudocódigo
+
+```
+función KADANE(A):                        función DYV(A, bajo, alto):
+    mejor ← (A[0], 0, 0)                      si bajo = alto: devolver (A[bajo], bajo, bajo)
+    aqui ← A[0] ; inicio ← 0                  medio ← ⌊(bajo+alto)/2⌋
+    para i ← 1 hasta n-1:                     izq ← DYV(A, bajo, medio)
+        si aqui < 0:                          der ← DYV(A, medio+1, alto)
+            aqui ← A[i] ; inicio ← i          cruz ← CRUZA(A, bajo, medio, alto)   ▷ Θ(n)
+        si no:                                devolver el de mayor suma entre izq, cruz, der
+            aqui ← aqui + A[i]
+        si aqui > mejor.suma:
+            mejor ← (aqui, inicio, i)
+    devolver mejor
+```
 
 ### 2.4 Cómo reducen el consumo energético las propuestas
 
-> ⏳ Sección en construcción.
+- **Operación 3.** La programación dinámica no ahorra energía de cómputo frente a la regla actual (la regla es más barata, Θ(n log n) contra Θ(n·W)), pero la diferencia es de menos de un segundo por día. Donde sí ahorra es en lo que importa ambientalmente: con la misma flota y los mismos viajes, cada vehículo sale lleno y con la carga de mayor valor, así que se mueve más comida por kilómetro recorrido y se vence menos en la bodega (cada kg botado = 2,5 kg de CO₂e). Frente a la única alternativa exacta (la exhaustiva), la PD pasa de "no termina nunca" a menos de un segundo.
+- **Operación 4.** Aquí el ahorro es directo: pasar de Θ(n²) a Θ(n) quita un factor de n ≈ 36.000 al trabajo. El computador de 150 W pasa de estar más de un día ocupado a menos de un segundo.
 
 ---
 
@@ -627,7 +731,22 @@ Investigamos las normas colombianas y las buenas prácticas que tocan la soluci�
 
 ### 6.5 Sostenibilidad de la decisión: escenario de crecimiento
 
-> ⏳ Sección en construcción.
+El caso pregunta qué pasa si el banco abre una segunda bodega y **duplica el número de lotes y de vehículos**.
+
+| Operación y estrategia | Qué se duplica | Efecto en el tiempo | Estimación |
+|---|---|---|---|
+| Op. 3, PD Θ(n·W) | 28 vehículos y hasta 1.200 lotes por ruta (W igual) | ×2 por ruta y ×2 por número de rutas = **×4** | ≈ 3,2 s por día (peor caso ≈ 5 s) |
+| Op. 3, exhaustiva | — | sigue sin terminar | — |
+| Op. 3, regla actual | lo mismo | ≈ ×4,4 | milisegundos, pero sigue sin dar el óptimo |
+| Op. 4, Kadane Θ(n) | 80 categorías (si la segunda bodega se analiza aparte) | ×2 | ≈ 0,15 s |
+| Op. 4, fuerza bruta Θ(n²) | 80 categorías | ×2 | ≈ 28,6 min en nuestro equipo; **más de 2 días** en el del cliente |
+| Op. 4, fuerza bruta, 20 años de histórico | n se duplica | **×4** | más de 4 días con 40 categorías en el equipo del cliente |
+
+Las dos estrategias que recomendamos aguantan el crecimiento sin cambiar de computador. El punto a vigilar es la **capacidad W**: si llegaran vehículos de 10.000 kg, la PD tardaría 2,5 veces más por ruta (sigue siendo segundos), pero si alguien cambia la unidad a gramos, la tabla se vuelve mil veces más grande. La memoria de la PD (≈ 41 MB por ruta) se libera al terminar cada vehículo, así que no se acumula con más vehículos.
+
+A futuro, si el banco creciera mucho más (por ejemplo, varias bodegas con vehículos muy grandes), la mochila se puede resolver con la variante que guarda solo dos filas para calcular el valor (memoria Θ(W)) y reconstruir con un método de dividir y vencer (algoritmo de Hirschberg), o usar unidades de 5 kg cuando la báscula no sea más precisa que eso. No lo necesitan hoy, pero conviene saber que existe.
+
+**Sociedad del futuro.** Un banco de alimentos que planea a tiempo y llena sus vehículos puede atender más organizaciones con la misma flota, sin más combustible ni más emisiones por viaje. Esa es la parte de la decisión que más impacto tiene a largo plazo.
 
 ---
 
