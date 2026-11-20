@@ -618,6 +618,60 @@ directas de la operación real del banco de alimentos.
 
 Todas pasan. Además, [medicion.py](src/saturacion_bodega/medicion.py) verifica en cada tamaño medido que las estrategias den el mismo crecimiento.
 
+**Complejidad**
+
+| Estrategia | Tiempo | Memoria adicional | Operaciones contadas |
+|---|---|---|---|
+| Todos los tramos (actual) | Θ(n²) | Θ(1) | n(n+1)/2 tramos |
+| Dividir y vencer | Θ(n log n) | Θ(log n) por la pila de recursión | horas recorridas en todos los niveles |
+| Kadane | Θ(n) | Θ(1) | n horas |
+
+**Cómo medimos.** Series generadas con [datos.py](src/saturacion_bodega/datos.py) (semilla 4000 + n), las mismas para las tres estrategias; `perf_counter` solo alrededor de la llamada; 3 repeticiones para la fuerza bruta, 10 para dividir y vencer y 30 para Kadane, y se promedia. Tamaños: n = 250 a 8.000 para las tres (con 8.000 la fuerza bruta ya tarda un segundo) y n = 9.000 a 288.000 para las dos rápidas. Datos crudos en [resultados/saturacion_bodega/](resultados/saturacion_bodega/).
+
+![Tiempo frente a n, saturación](graficas/saturacion_bodega/tiempo_vs_n.png)
+
+![Operaciones frente a n, saturación](graficas/saturacion_bodega/operaciones_vs_n.png)
+
+| n (horas) | Fuerza bruta (ms) | Dividir y vencer (ms) | Kadane (ms) |
+|---|---|---|---|
+| 250 | 0,87 | 0,17 | 0,012 |
+| 500 | 3,6 | 0,30 | 0,022 |
+| 1.000 | 15,2 | 0,69 | 0,059 |
+| 2.000 | 59,8 | 1,39 | 0,087 |
+| 4.000 | 253,4 | 3,12 | 0,18 |
+| 8.000 | 1.059,8 | 6,56 | 0,39 |
+| 36.000 | — | 29,5 | 1,67 |
+| 72.000 | — | 62,4 | 3,23 |
+| 288.000 | — | 273,7 | 13,8 |
+
+En la gráfica log-log las tres son rectas, y la **pendiente** es el exponente: la de la fuerza bruta es el doble de empinada que la de Kadane (n² contra n), y la de dividir y vencer queda apenas por encima de la de Kadane (el factor log n). En el panel derecho Kadane es una línea casi plana y dividir y vencer una recta ligeramente curvada hacia arriba.
+
+**Lo medido contra lo esperado (al duplicar n)**
+
+| Pareja | Estrategia | Factor esperado | Factor en operaciones | Factor en tiempo |
+|---|---|---|---|---|
+| 4.000 → 8.000 | Fuerza bruta | 4 | 4,00 | 4,18 |
+| 4.000 → 8.000 | Dividir y vencer | 2·log(8.000)/log(4.000) ≈ 2,17 | 2,15 | 2,10 |
+| 4.000 → 8.000 | Kadane | 2 | 2,00 | 2,14 |
+| 36.000 → 72.000 | Dividir y vencer | ≈ 2,13 | 2,12 | 2,11 |
+| 36.000 → 72.000 | Kadane | 2 | 2,00 | 1,94 |
+
+Todo coincide con la teoría con un margen de ±7 %. La fuerza bruta se multiplica por 4 (cuadrática); dividir y vencer un poco más que 2 (el log n crece despacio); Kadane por 2 (lineal). Las pequeñas diferencias en tiempo son ruido y efectos de caché; en operaciones los factores son prácticamente exactos.
+
+**Extrapolación al volumen real (40 categorías × 36.000 horas)**
+
+Las dos estrategias rápidas **las medimos directamente** sobre 40 series de 36.000 horas. La fuerza bruta no (tardaría demasiado para repetirla), así que la extrapolamos con su forma cuadrática, que ya comprobamos: t(36.000) = t(8.000) × (36.000 / 8.000)² = 1,06 s × 20,25 ≈ 21,5 s por categoría, y × 40 ≈ **858 s ≈ 14,3 minutos**.
+
+![Volumen real, saturación](graficas/saturacion_bodega/volumen_real.png)
+
+| Estrategia | 40 categorías (nuestro equipo) | Con el factor ≈ 100 del equipo del cliente | Energía por corrida (0,15 kW) |
+|---|---|---|---|
+| Fuerza bruta (actual) | ≈ 14,3 min (estimado) | > 24 h (dato del cliente) | 0,036 kWh (nuestro) / ≥ 3,6 kWh (cliente) |
+| Dividir y vencer | 1,26 s (medido) | ≈ 2 min | 5,2 × 10⁻⁵ kWh |
+| Kadane | 0,074 s (medido) | ≈ 7 s | 3,1 × 10⁻⁶ kWh |
+
+Aquí encontramos algo que vale la pena decir: nuestra extrapolación de la fuerza bruta da 14 minutos, pero el cliente dice que tarda **más de un día**. Esa diferencia de ≈ 100 veces puede venir de que el computador del banco es más viejo, de que el programa lee los datos de disco o de una base de datos mientras calcula, o de que recalcula cada suma desde cero (eso sería Θ(n³)). No lo podemos saber con la información del caso, por eso dejamos las dos cifras: la nuestra, medida y conservadora, y la del cliente. Lo importante es que **la proporción entre estrategias no depende del equipo**: con n = 36.000, Kadane hace 36.000 operaciones donde la fuerza bruta hace 648 millones, unas **18.000 veces menos**.
+
 ---
 
 ## 5. Análisis comparativo
@@ -743,7 +797,28 @@ Por esta razón, el mayor tiempo de procesamiento de la programación dinámica 
 
 Los valores se pueden reproducir ejecutando `python -m src.cargue_vehiculos.medicion` y consultando `resultados/cargue_vehiculos/resumen.json`.
 
-> ⏳ Sección en construcción.
+**Comida que deja de vencerse (operación 3).** La diferencia en comida pesa mucho más que la eléctrica. En nuestras simulaciones la PD sube unos **6.231 kg más por día** con los mismos viajes. No todo eso es comida que se habría botado; si suponemos que solo entre el 1 % y el 5 % de esos kilos adicionales se habría vencido en la bodega, el banco evitaría entre 62 y 312 kg de desperdicio al día, es decir, entre **18,7 y 93,5 toneladas al año** (300 días), que con el factor del banco (2,5 kg CO₂e por kg) son **entre 47 y 234 toneladas de CO₂ equivalente al año**. Son estimaciones con supuestos fuertes, pero muestran que el impacto ambiental de esta operación está en la comida, no en la electricidad.
+
+**Operación 4 (saturación)**, 12 corridas al año:
+
+| Estrategia | Energía por corrida | Energía al año |
+|---|---|---|
+| Fuerza bruta (dato del cliente, > 24 h) | ≥ 3,6 kWh | **≥ 43,2 kWh** |
+| Fuerza bruta (nuestra estimación, 14,3 min) | 0,036 kWh | 0,43 kWh |
+| Kadane (medido, 0,074 s) | 3,1 × 10⁻⁶ kWh | ≈ 3,7 × 10⁻⁵ kWh (≈ 0,004 kWh con el factor ×100 del equipo del cliente) |
+
+**Ahorro anual de la operación 4: ≈ 43 kWh** con las cifras del cliente (o 0,43 kWh con las nuestras). Es casi el **100 %** del consumo de esa operación.
+
+**Proceso completo.** La línea base era ≥ 245,7 kWh/año (202,5 de la planeación + 43,2 de la saturación). Con nuestras dos propuestas:
+
+| Componente | Actual (kWh/año) | Con las propuestas (kWh/año) |
+|---|---|---|
+| Operación 4 (saturación) | 43,2 | ≈ 0,004 |
+| Operación 3 dentro de la planeación | despreciable | ≈ 0,02 (sube un poco) |
+| Operaciones 1 y 2 dentro de la planeación (no implementadas) | ≈ 202,5 | ≈ 202,5 hasta que se cambien (ver 7.3) |
+| **Total** | **≥ 245,7** | **≈ 202,5** (−18 %) |
+
+Con lo que implementamos, el ahorro eléctrico es de unos **43 kWh al año (−18 %)**. Si el banco además adopta lo que recomendamos para las operaciones 1 y 2 (tabla hash e intercalación, sección 7.3), la planeación pasaría de 4,5 h a minutos y el consumo total quedaría por debajo de 5 kWh al año según nuestra estimación teórica. Pero la ganancia ambiental grande, otra vez, es que la planeación termine a tiempo y los carros salgan llenos: eso es comida que no se vence.
 
 ### 6.2 Preguntas de impacto del caso
 
@@ -813,7 +888,33 @@ A futuro, si el banco creciera mucho más (por ejemplo, varias bodegas con vehí
 
 ## 7. Conclusiones
 
-> ⏳ Sección en construcción.
+### 7.1 Principales hallazgos
+
+1. **El cargue por vencimiento no es un problema de velocidad sino de calidad.** Corre en milisegundos, pero en nuestras simulaciones solo logra el 42 % del valor nutricional posible y deja el 13,5 % del vehículo vacío. Con un ejemplo de 5 lotes mostramos que pierde 13 de 34 puntos de valor.
+2. **La mochila 0/1 por programación dinámica da el óptimo garantizado en menos de un segundo por día** para los 14 vehículos. Coincidió con la exhaustiva en 300 instancias y en todos los tamaños medidos.
+3. **La regla por densidad es tentadora pero no es exacta:** 98,6 % en promedio, pero en una ruta perdió casi el 14 %. Solo sería óptima si los lotes se pudieran partir.
+4. **La exhaustiva no es una opción real:** con 40 lotes ya tardaría 3 semanas por vehículo, y con 300 más que la edad del universo.
+5. **En la saturación, Kadane reemplaza un proceso de más de un día por uno de décimas de segundo**, con el mismo resultado, y la diferencia de operaciones es de unas 18.000 veces.
+6. **Lo medido coincidió con la teoría:** al duplicar n las operaciones se multiplicaron exactamente por 2 (PD y Kadane), 4 (fuerza bruta), ≈ 2,15 (dividir y vencer) y 2.048 (exhaustiva, de 10 a 20 lotes); los tiempos se alejaron como máximo un 15 %.
+7. **El ahorro eléctrico directo es de ≈ 43 kWh al año (−18 % del proceso)**, pero el mayor impacto ambiental está en la comida que deja de vencerse: estimamos entre 47 y 234 toneladas de CO₂e al año evitadas, según cuánto de lo que ahora sube se habría desperdiciado.
+
+### 7.2 Lecciones aprendidas
+
+- Antes de programar hay que resolver el problema a mano. El ejemplo de 5 lotes nos ayudó a encontrar el contraejemplo y después se volvió una prueba automática.
+- La exhaustiva sirve muchísimo aunque sea inútil en producción: es el juez que nos dio confianza en la PD y en Kadane.
+- "Más rápido" no siempre es "mejor": en la operación 3 escogimos un algoritmo más costoso que el actual porque el actual no cumple lo que pidió el cliente.
+- Una complejidad como Θ(n·W) engaña si uno solo mira n; hay que medir variando W por separado para verlo.
+- Medir microsegundos es ruidoso; contar operaciones fue más confiable que el reloj para las reglas rápidas.
+- Las cifras del cliente y las nuestras no siempre coinciden (la saturación: 14 minutos contra más de un día). Es mejor mostrar las dos y explicar por qué pueden diferir que esconder la diferencia.
+
+### 7.3 Recomendaciones y mejoras futuras
+
+1. **Agregar la urgencia de vencimiento al valor de cada lote** (o cargar primero los lotes urgentes y optimizar el resto con la PD). Es la mejora más importante para que el cargue óptimo no choque con la política FEFO.
+2. **Cuotas mínimas por organización** antes de la PD, con revisión mensual de qué recibe cada beneficiario, para que los jardines infantiles y hogares no queden por fuera.
+3. **Operación 1 (consultas):** guardar el inventario en una **tabla hash** por `codigo_lote` (consulta Θ(1) promedio, en vez de recorrer 220.000 lotes) y en un **arreglo ordenado por fecha con búsqueda binaria** (o un árbol de búsqueda balanceado) para el rango "¿qué vence en 72 horas?": Θ(log n + k) en vez de Θ(n).
+4. **Operación 2 (FEFO):** ordenar solo los 6.000–9.000 lotes nuevos del día con un ordenamiento Θ(k log k) (por ejemplo, mergesort) e **intercalarlos** con la lista que ya estaba ordenada en Θ(n + k). Estimamos ≈ 3,4 × 10⁵ operaciones en vez de ≈ 10⁹ de la inserción, unas 3.000 veces menos. Con las operaciones 1 a 4 mejoradas, la planeación debería terminar en minutos y no en 4,5 horas. Esto es una estimación teórica: la siguiente fase debería implementarlo y medirlo con el mismo método de este informe.
+5. Validar el modelo con datos reales de una semana del banco (pesos, raciones, prioridades), porque el porcentaje de mejora del valor depende mucho de los datos.
+6. Medir el tiempo en el computador real de la fundación para reemplazar nuestro factor de "≈ 100 veces más lento" por un dato medido.
 
 ---
 
@@ -889,6 +990,14 @@ python -m src.cargue_vehiculos.medicion
 
 El programa compara los algoritmos, mide su crecimiento y simula 10 días de operación con 14 vehículos diarios.
 
+Para la operación 4 (tarda unos 15 s):
+
+~~~powershell
+python -m src.saturacion_bodega.medicion
+~~~
+
+Mide las tres estrategias con series de distintos tamaños y estima el análisis completo de 40 categorías con dos años de datos por hora.
+
 ### 9.4 Archivos generados
 
 Gráficas en `graficas/cargue_vehiculos/`:
@@ -906,6 +1015,14 @@ Resultados en `resultados/cargue_vehiculos/`:
 - `dias_reales.csv`
 - `resumen.json`
 
+Gráficas en `graficas/saturacion_bodega/`:
+
+- `tiempo_vs_n.png`
+- `operaciones_vs_n.png`
+- `volumen_real.png`
+
+Resultados en `resultados/saturacion_bodega/`: los CSV de cada experimento y `resumen.json`.
+
 ### 9.5 Consideraciones de reproducibilidad
 
 Las semillas fijas permiten reproducir las instancias utilizadas.
@@ -913,3 +1030,35 @@ Las semillas fijas permiten reproducir las instancias utilizadas.
 Los tiempos pueden variar según el computador, el sistema operativo y la versión de Python.
 
 Las mediciones corresponden a datos sintéticos y no representan registros directos de la operación real del banco de alimentos.
+
+### 9.6 Estilo, PDF y estructura del repositorio
+
+Revisar el estilo (PEP 8, con líneas de hasta 99 caracteres según [setup.cfg](setup.cfg)):
+
+~~~powershell
+python -m pip install pycodestyle
+python -m pycodestyle src
+~~~
+
+El PDF de [docs/informe.pdf](docs/informe.pdf) se generó a partir de este mismo README con [docs/generar_pdf.py](docs/generar_pdf.py), que usa Microsoft Edge o Google Chrome en modo *headless*:
+
+~~~powershell
+python -m pip install markdown
+python docs/generar_pdf.py
+~~~
+
+```
+├── README.md                 # este informe
+├── requirements.txt
+├── setup.cfg                 # configuración de pycodestyle
+├── docs/
+│   ├── informe.pdf           # mismo contenido del README
+│   └── generar_pdf.py
+├── src/
+│   ├── cargue_vehiculos/     # operación 3 (Laboratorio 4)
+│   └── saturacion_bodega/    # operación 4
+├── graficas/
+│   ├── cargue_vehiculos/
+│   └── saturacion_bodega/
+└── resultados/               # CSV y resumen.json de cada experimento
+```
