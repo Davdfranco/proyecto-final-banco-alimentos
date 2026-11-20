@@ -378,6 +378,7 @@ Todo está en [src/saturacion_bodega/](src/saturacion_bodega/):
 
 | Archivo | Qué contiene |
 |---|---|
+| [contador.py](src/saturacion_bodega/contador.py) | Contador de operaciones elementales. |
 | [estrategia.py](src/saturacion_bodega/estrategia.py) | `tramo_kadane` (propuesta, programación dinámica) y `analizar_categorias` para las 40 categorías. |
 | [dividir_vencer.py](src/saturacion_bodega/dividir_vencer.py) | `tramo_dividir_vencer`, con `tramo_recursivo` y `tramo_que_cruza`. |
 | [regla_actual.py](src/saturacion_bodega/regla_actual.py) | `tramo_fuerza_bruta`: revisa todos los tramos (lo que se hace hoy). |
